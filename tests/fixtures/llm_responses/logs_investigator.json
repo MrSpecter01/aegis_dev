@@ -1,0 +1,27 @@
+{
+  "agent_role": "log_trace_investigator",
+  "hypothesis": "Corroborated Java OutOfMemoryError heap exhaustion in cartservice application logs",
+  "confidence": 0.92,
+  "evidence": [
+    {
+      "source_tool": "loki_query",
+      "query_or_cmd": "{app='cartservice'} |= 'OutOfMemoryError'",
+      "raw_output": "java.lang.OutOfMemoryError: Java heap space at com.boutique.cartservice.CartService.addItem(CartService.java:142)"
+    },
+    {
+      "source_tool": "tempo_search",
+      "query_or_cmd": "service='frontend' status='error'",
+      "raw_output": "Trace ID 4bf92f3577b34da6a3ce929d0e0e4736: HTTP 500 received from cartservice:50051"
+    }
+  ],
+  "verbatim_signals": {
+    "error_class": "java.lang.OutOfMemoryError",
+    "failing_method": "com.boutique.cartservice.CartService.addItem",
+    "trace_id": "4bf92f3577b34da6a3ce929d0e0e4736"
+  },
+  "infra_flags": {},
+  "recommended_actions": [
+    "update_resource_limits"
+  ],
+  "truncated": false
+}

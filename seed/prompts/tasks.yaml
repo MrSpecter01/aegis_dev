@@ -1,0 +1,58 @@
+investigate_infrastructure:
+  description: >
+    You are investigating an incident for service '{service}' in namespace '{namespace}'.
+    Alert claim to verify: {alert_context}
+    Topology context: {topology_subgraph}
+    Severity: {severity}
+
+    MISSION: The alert represents an unverified monitoring claim. Your objective is to use your available infrastructure tools to find empirical evidence in the cluster determining whether this alert claim is genuinely occurring, identify any system root causes, and show the evidence to prove your conclusion.
+
+    EVIDENCE REQUIREMENTS:
+    1. The alert text is an unverified assertion. You MUST NOT conclude or output final findings until you have executed tools from your toolset to inspect the real cluster and collect proof.
+    2. Use your available tools to inspect live workload state, pod health, container exit codes, and recent lifecycle events for '{service}'.
+    3. Use your available tools to measure actual resource saturation (CPU, memory, storage I/O, network) to verify if resource exhaustion is real.
+    4. Conclude only after your tools have returned real data. All items in `evidence` must contain verbatim tool output proving or disproving the alert claim.
+  expected_output: >
+    A fully valid JSON object containing your findings, matching the required AgentFinding schema exactly. All items in `evidence` MUST contain real telemetry and diagnostics gathered by calling your provided tools during this session; do not fabricate evidence.
+  agent: infrastructure_investigator
+
+investigate_logs_traces:
+  description: >
+    You are investigating an incident for service '{service}' in namespace '{namespace}'.
+    Alert claim to verify: {alert_context}
+    Topology context: {topology_subgraph}
+    Severity: {severity}
+    Infrastructure findings: {infra_flags}
+
+    MISSION: The alert represents an unverified monitoring claim. Your objective is to use your available observability tools to find empirical evidence in application logs and distributed traces determining whether error spikes, exceptions, or latency bottlenecks are genuinely occurring, and show the evidence to prove your conclusion.
+
+    EVIDENCE REQUIREMENTS:
+    1. The alert text is an unverified assertion. You MUST NOT conclude or output final findings until you have executed tools from your toolset to search live telemetry streams and collect proof.
+    2. Use your available tools to search application log streams for '{service}' across the incident timeframe to verify if active errors, panics, or timeouts exist.
+    3. Use your available tools to inspect distributed traces and measure request latency across dependencies to verify if call failures or bottlenecks exist.
+    4. Conclude only after your tools have returned real data. If logs and traces show no errors, report that the claim is unverified by application telemetry.
+  expected_output: >
+    A fully valid JSON object containing your findings, matching the required AgentFinding schema exactly. All items in `evidence` MUST contain real log and trace lines gathered by calling your provided tools during this session; do not fabricate evidence.
+  agent: log_trace_investigator
+
+investigate_changes_configs:
+  description: >
+    You are investigating an incident for service '{service}' in namespace '{namespace}'.
+    Alert claim to verify: {alert_context}
+    Topology context: {topology_subgraph}
+    Severity: {severity}
+    Time Constraints:
+    - Search Since: {since_time}
+    - Search Until: {until_time}
+
+    MISSION: The alert represents an unverified monitoring claim. Your objective is to use your available release and configuration tools to find empirical evidence determining whether a deployment, git commit, configuration drift, or feature flag change triggered this incident, and show the evidence to prove your conclusion.
+
+    EVIDENCE REQUIREMENTS:
+    1. Do not assume changes occurred without proof. You MUST NOT conclude or output final findings until you have executed tools from your toolset to inspect deployment history, git revisions, and config state.
+    2. Use your available tools to inspect live feature flags (call `get_feature_flag` if available to check for any active non-`off` flags in `flagd`), rollout history, sync status, and active revisions for '{service}'.
+    3. Use your available tools to inspect git commits and configuration changes within the search window.
+    4. Conclude only after your tools have returned real data. If an active feature flag is found, quote its exact `flag_name` and `defaultVariant` in your evidence. Otherwise report that change-induced root causes are disproven by the evidence.
+  expected_output: >
+    A fully valid JSON object containing your findings, matching the required AgentFinding schema exactly. All items in `evidence` MUST contain real deployment and commit records gathered by calling your provided tools during this session; do not fabricate evidence.
+  agent: change_config_investigator
+

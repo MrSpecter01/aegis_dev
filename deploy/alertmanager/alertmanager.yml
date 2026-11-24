@@ -1,0 +1,24 @@
+# Aegis — Alertmanager Configuration
+# Routes all alerts to the Aegis API server webhook receiver.
+# The aegis-api service is created in M2 — until then Alertmanager
+# will log delivery failures gracefully.
+
+global:
+  resolve_timeout: 5m
+
+route:
+  receiver: "aegis-webhook"
+  group_by: ["alertname", "namespace"]
+  group_wait: 5s
+  group_interval: 15s
+  repeat_interval: 5m
+
+receivers:
+  - name: "aegis-webhook"
+    webhook_configs:
+      - url: "http://aegis-api:8080/v1/alerts/ingest"
+        http_config:
+          authorization:
+            credentials: "aegis-alertmanager-key-dev"
+        send_resolved: true
+        max_alerts: 0

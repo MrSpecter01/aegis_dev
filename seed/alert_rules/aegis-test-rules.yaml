@@ -1,0 +1,69 @@
+groups:
+  - name: aegis_test_alerts
+    rules:
+      - alert: PodMemoryHigh
+        expr: (container_memory_working_set_bytes{namespace="boutique",container!="",container!="POD"} / container_spec_memory_limit_bytes{namespace="boutique",container!="",container!="POD"} > 0.90) and (container_spec_memory_limit_bytes{namespace="boutique",container!="",container!="POD"} > 0)
+        for: 30s
+        labels:
+          severity: P2
+          namespace: boutique
+        annotations:
+          summary: "Pod memory working set above 90%"
+          description: "Pod {{ $labels.pod }} in namespace {{ $labels.namespace }} is using > 90% memory limit."
+
+      - alert: NodeCPUSaturation
+        expr: (1 - avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[2m]))) > 0.85
+        for: 1m
+        labels:
+          severity: P1
+        annotations:
+          summary: "Node CPU utilization above 85%"
+          description: "Node {{ $labels.instance }} CPU saturation is above 85%."
+
+      - alert: ServiceLatencyHigh
+        expr: histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[2m])) by (le, job)) * 1000 > 500
+        for: 1m
+        labels:
+          severity: P2
+        annotations:
+          summary: "Service p99 latency above 500ms"
+          description: "Service {{ $labels.job }} p99 latency exceeds 500ms SLO."
+
+      - alert: ElevatedHTTP5xxErrorRate
+        expr: sum(rate(http_requests_total{status=~"5.."}[2m])) by (job) / sum(rate(http_requests_total[2m])) by (job) > 0.01
+        for: 1m
+        labels:
+          severity: P1
+        annotations:
+          summary: "Elevated HTTP 5xx error rate"
+          description: "Service {{ $labels.job }} HTTP 5xx error rate exceeds 1% SLO threshold."
+
+      - alert: ContainerCrashLoopBackOff
+        expr: (kube_pod_container_status_waiting_reason{namespace="boutique",reason=~"CrashLoopBackOff|ImagePullBackOff|ErrImagePull|CreateContainerConfigError"} == 1) or (rate(kube_pod_container_status_restarts_total{namespace="boutique"}[5m]) * 300 > 2)
+        for: 15s
+        labels:
+          severity: P2
+          namespace: boutique
+        annotations:
+          summary: "Container crash looping or failing in pod"
+          description: "Pod {{ $labels.pod }} container {{ $labels.container }} in namespace {{ $labels.namespace }} is failing ({{ $labels.reason }})."
+
+      - alert: DeploymentUnavailable
+        expr: (kube_deployment_spec_replicas{namespace="boutique"} > 0 and kube_deployment_status_replicas_available{namespace="boutique"} < kube_deployment_spec_replicas{namespace="boutique"}) or (kube_deployment_spec_replicas{namespace="boutique"} == 0)
+        for: 30s
+        labels:
+          severity: P1
+          namespace: boutique
+          service: "{{ $labels.deployment }}"
+        annotations:
+          summary: "Deployment unavailable in boutique"
+          description: "Deployment {{ $labels.deployment }} in namespace {{ $labels.namespace }} has unavailable replicas."
+
+      - alert: ServiceDNSResolutionFailure
+        expr: rate(coredns_dns_responses_total{rcode="SERVFAIL"}[2m]) > 0
+        for: 1m
+        labels:
+          severity: P1
+        annotations:
+          summary: "DNS resolution failure in cluster"
+          description: "CoreDNS queries are returning SERVFAIL for cluster service lookups."

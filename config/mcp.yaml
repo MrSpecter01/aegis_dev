@@ -1,0 +1,86 @@
+mcp_servers:
+  prometheus:
+    server_url: "http://aegis-prometheus-mcp:9001/mcp"
+    tools:
+      - name: prometheus_query
+        tags: [metrics, read]
+
+  loki:
+    server_url: "http://aegis-loki-mcp:9002/mcp"
+    tools:
+      - name: loki_query
+        tags: [logs, read]
+
+  tempo:
+    server_url: "http://aegis-tempo-mcp:9003/mcp"
+    tools:
+      - name: tempo_get_trace
+        tags: [traces, read]
+      - name: tempo_search
+        tags: [traces, search, read]
+
+  jaeger:
+    server_url: "http://aegis-jaeger-mcp:9009/mcp"
+    tools:
+      - name: jaeger_get_trace
+        tags: [traces, read]
+      - name: jaeger_search_traces
+        tags: [traces, search, read]
+
+  kubernetes:
+    server_url: "http://aegis-k8s-mcp:9004/mcp"
+    tools:
+      - name: k8s_get_events
+        tags: [k8s, events, read]
+      - name: k8s_get_pod_status
+        tags: [k8s, pods, read]
+      - name: k8s_get_pod_diagnostics
+        tags: [k8s, pods, read]
+      - name: k8s_get_node_metrics
+        tags: [k8s, nodes, metrics, read]
+      - name: k8s_get_configmap_diff
+        tags: [k8s, configmaps, read]
+      - name: restart_pod
+        tags: [k8s, pods, write, remediation]
+      - name: scale_deployment
+        tags: [k8s, deployments, write, remediation]
+      - name: rollback_release
+        tags: [k8s, deployments, write, remediation]
+      - name: update_resource_limits
+        tags: [k8s, resources, write, remediation]
+      - name: drain_node
+        tags: [k8s, nodes, write, remediation]
+
+  argocd:
+    server_url: "http://aegis-argocd-mcp:9005/mcp"
+    tools:
+      - name: argocd_get_sync_history
+        tags: [gitops, sync, read]
+      - name: argocd_get_app_status
+        tags: [gitops, app, read]
+
+  github:
+    server_url: "http://aegis-github-mcp:9006/mcp"
+    tools:
+      - name: github_get_commits
+        tags: [git, commits, read]
+
+  featureflags:
+    server_url: "http://aegis-mcp:9000/mcp"
+    tools:
+      - name: get_feature_flag
+        tags: [featureflags, configmaps, read]
+      - name: toggle_feature_flag
+        tags: [featureflags, write, remediation]
+
+  qdrant:
+    server_url: "http://aegis-mcp:9000/mcp"
+    tools:
+      - name: qdrant_search
+        tags: [rag, runbooks, read]
+
+  topology:
+    server_url: "http://aegis-topology-mcp:9008/mcp"
+    tools:
+      - name: topology_query_node
+        tags: [topology, read]

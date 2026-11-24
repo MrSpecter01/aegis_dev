@@ -1,0 +1,614 @@
+[
+  {
+    "id": "crash-loop-backoff",
+    "title": "Container CrashLoopBackOff Remediation",
+    "types": [
+      "runbook",
+      "procedure"
+    ],
+    "tags": [
+      "crashloop",
+      "pod",
+      "container",
+      "exitcode",
+      "kubernetes"
+    ],
+    "symptoms": [
+      "Pod in CrashLoopBackOff",
+      "container exiting with non-zero exit code immediately on startup"
+    ],
+    "summary": "Diagnostic and recovery procedure for containers failing startup checks or terminating prematurely in CrashLoopBackOff.",
+    "allowed_actions": [
+      "restart_pod",
+      "rollback_release",
+      "update_resource_limits"
+    ],
+    "sections": [
+      {
+        "section_name": "Symptom",
+        "chunk_index": 1,
+        "total_chunks": 5,
+        "chunk_id": "chunk 1/5",
+        "line_start": 11,
+        "line_end": 12,
+        "line_range": "L11-L12",
+        "allowed_actions": [],
+        "excerpt": "Pod status oscillates between `CrashLoopBackOff` and `Error`. Restart count increments continuously and container fails health/liveness probes."
+      },
+      {
+        "section_name": "Probable Causes",
+        "chunk_index": 2,
+        "total_chunks": 5,
+        "chunk_id": "chunk 2/5",
+        "line_start": 14,
+        "line_end": 17,
+        "line_range": "L14-L17",
+        "allowed_actions": [],
+        "excerpt": "1. Missing environment variable, corrupt ConfigMap, or invalid secret reference 2. Fatal runtime exception during application initialization 3. Incompatible binary or bad container image deployed in latest release"
+      },
+      {
+        "section_name": "Investigation Steps",
+        "chunk_index": 3,
+        "total_chunks": 5,
+        "chunk_id": "chunk 3/5",
+        "line_start": 19,
+        "line_end": 22,
+        "line_range": "L19-L22",
+        "allowed_actions": [],
+        "excerpt": "1. Call `k8s_get_events` to retrieve container exit codes, termination messages, and restart counts 2. Check `loki_query` for standard error output and startup panic messages 3. Check `k8s_get_configmap_diff` or `argocd_get_sync_history` for recent configuration alterations"
+      },
+      {
+        "section_name": "Remediation Steps",
+        "chunk_index": 4,
+        "total_chunks": 5,
+        "chunk_id": "chunk 4/5",
+        "line_start": 24,
+        "line_end": 27,
+        "line_range": "L24-L27",
+        "allowed_actions": [
+          "rollback_release",
+          "restart_pod",
+          "update_resource_limits"
+        ],
+        "excerpt": "1. If the crash started following a deployment or config change: `rollback_release` 2. If temporary filesystem or external locking state caused the crash: `restart_pod` 3. If memory or CPU is terminating initialization sequence prematurely: `update_resource_limits`"
+      },
+      {
+        "section_name": "Escalation Criteria",
+        "chunk_index": 5,
+        "total_chunks": 5,
+        "chunk_id": "chunk 5/5",
+        "line_start": 29,
+        "line_end": 32,
+        "line_range": "L29-L32",
+        "allowed_actions": [],
+        "excerpt": "- Container fails across all replicas with configuration syntax errors requiring git commit - Rollback release fails to stabilize application startup - Image pull failure or missing credentials from external registry"
+      }
+    ]
+  },
+  {
+    "id": "db-connection-exhaustion",
+    "title": "Database Connection Pool Exhaustion Remediation",
+    "types": [
+      "runbook",
+      "procedure"
+    ],
+    "tags": [
+      "database",
+      "connections",
+      "timeout",
+      "postgresql",
+      "redis"
+    ],
+    "symptoms": [
+      "Database connection pool exhausted",
+      "queries timing out",
+      "client connection errors"
+    ],
+    "summary": "Mitigation procedures for saturated relational database or cache connection pools causing client query timeouts.",
+    "allowed_actions": [
+      "restart_pod",
+      "scale_deployment",
+      "update_resource_limits"
+    ],
+    "sections": [
+      {
+        "section_name": "Symptom",
+        "chunk_index": 1,
+        "total_chunks": 5,
+        "chunk_id": "chunk 1/5",
+        "line_start": 11,
+        "line_end": 12,
+        "line_range": "L11-L12",
+        "allowed_actions": [],
+        "excerpt": "Application logs show database connection pool timeouts (e.g. `too many connections`, `pool exhausted`, `connection refused`). Backend services hang waiting for database handles."
+      },
+      {
+        "section_name": "Probable Causes",
+        "chunk_index": 2,
+        "total_chunks": 5,
+        "chunk_id": "chunk 2/5",
+        "line_start": 14,
+        "line_end": 17,
+        "line_range": "L14-L17",
+        "allowed_actions": [],
+        "excerpt": "1. Sudden traffic surge scaling frontend pods beyond database connection capacity 2. Leaked database connections due to unclosed sessions in application code 3. Long-running or unindexed analytical queries locking connection handles"
+      },
+      {
+        "section_name": "Investigation Steps",
+        "chunk_index": 3,
+        "total_chunks": 5,
+        "chunk_id": "chunk 3/5",
+        "line_start": 19,
+        "line_end": 22,
+        "line_range": "L19-L22",
+        "allowed_actions": [],
+        "excerpt": "1. Query Prometheus for database active connection count vs max connection limit 2. Check `loki_query` for database driver errors and unhandled connection timeouts 3. Review recent scaling actions or traffic spikes in `k8s_get_events`"
+      },
+      {
+        "section_name": "Remediation Steps",
+        "chunk_index": 4,
+        "total_chunks": 5,
+        "chunk_id": "chunk 4/5",
+        "line_start": 24,
+        "line_end": 27,
+        "line_range": "L24-L27",
+        "allowed_actions": [
+          "scale_deployment",
+          "update_resource_limits",
+          "restart_pod"
+        ],
+        "excerpt": "1. Scale down non-critical application replicas to release connections: `scale_deployment` 2. If memory or CPU on connection proxy or stateful pool is saturated: `update_resource_limits` 3. Restart stuck application pods holding dangling leaked handles: `restart_pod`"
+      },
+      {
+        "section_name": "Escalation Criteria",
+        "chunk_index": 5,
+        "total_chunks": 5,
+        "chunk_id": "chunk 5/5",
+        "line_start": 29,
+        "line_end": 32,
+        "line_range": "L29-L32",
+        "allowed_actions": [],
+        "excerpt": "- Primary database unresponsive or crashing - Replicas fail to recover connections after client pod restarts - Data corruption or replication lag exceeds recovery window"
+      }
+    ]
+  },
+  {
+    "id": "high-error-rate",
+    "title": "Elevated HTTP 5xx Error Rate Remediation",
+    "types": [
+      "runbook",
+      "procedure"
+    ],
+    "tags": [
+      "http",
+      "errors",
+      "5xx",
+      "ingress",
+      "api"
+    ],
+    "symptoms": [
+      "Elevated HTTP 5xx error rate",
+      "failed requests exceeding SLO threshold"
+    ],
+    "summary": "Rapid response playbook for sudden spikes in HTTP 5xx server errors across API ingress and microservices.",
+    "allowed_actions": [
+      "restart_pod",
+      "rollback_release",
+      "toggle_feature_flag"
+    ],
+    "sections": [
+      {
+        "section_name": "Symptom",
+        "chunk_index": 1,
+        "total_chunks": 5,
+        "chunk_id": "chunk 1/5",
+        "line_start": 11,
+        "line_end": 12,
+        "line_range": "L11-L12",
+        "allowed_actions": [],
+        "excerpt": "Application error rate exceeds acceptable threshold (HTTP 5xx rate > 1%). Golden signals report elevated error ratios on ingress or service endpoints."
+      },
+      {
+        "section_name": "Probable Causes",
+        "chunk_index": 2,
+        "total_chunks": 5,
+        "chunk_id": "chunk 2/5",
+        "line_start": 14,
+        "line_end": 17,
+        "line_range": "L14-L17",
+        "allowed_actions": [],
+        "excerpt": "1. Defective release or bad configuration deployed recently 2. Downstream dependent service failing or timing out 3. Broken feature flag or external third-party API outage"
+      },
+      {
+        "section_name": "Investigation Steps",
+        "chunk_index": 3,
+        "total_chunks": 5,
+        "chunk_id": "chunk 3/5",
+        "line_start": 19,
+        "line_end": 22,
+        "line_range": "L19-L22",
+        "allowed_actions": [],
+        "excerpt": "1. Check `loki_query` for recent 5xx error logs and exception stack traces 2. Check `argocd_get_sync_history` or `github_get_commits` for recent release changes 3. Check `tempo_search` for traces containing error tags to identify failing service hops"
+      },
+      {
+        "section_name": "Remediation Steps",
+        "chunk_index": 4,
+        "total_chunks": 5,
+        "chunk_id": "chunk 4/5",
+        "line_start": 24,
+        "line_end": 27,
+        "line_range": "L24-L27",
+        "allowed_actions": [
+          "rollback_release",
+          "toggle_feature_flag",
+          "restart_pod"
+        ],
+        "excerpt": "1. If errors correlate with a recent deployment: `rollback_release` 2. If errors correlate with an active experimental feature: `toggle_feature_flag` 3. If errors stem from transient container failure or deadlock: `restart_pod`"
+      },
+      {
+        "section_name": "Escalation Criteria",
+        "chunk_index": 5,
+        "total_chunks": 5,
+        "chunk_id": "chunk 5/5",
+        "line_start": 29,
+        "line_end": 32,
+        "line_range": "L29-L32",
+        "allowed_actions": [],
+        "excerpt": "- Error rate remains elevated after rollback or feature flag disablement - Database or payment gateway unavailable - Cascading failures impacting more than 3 downstream microservices"
+      }
+    ]
+  },
+  {
+    "id": "network-latency",
+    "title": "Inter-Service Network Latency Remediation",
+    "types": [
+      "runbook",
+      "procedure"
+    ],
+    "tags": [
+      "latency",
+      "network",
+      "p99",
+      "timeout",
+      "rpc"
+    ],
+    "symptoms": [
+      "Elevated p99 inter-service latency",
+      "cross-service RPC timeouts",
+      "packet drop"
+    ],
+    "summary": "Diagnostic and mitigation actions when inter-service RPC latency or network transport delays breach SLO limits.",
+    "allowed_actions": [
+      "restart_pod",
+      "rollback_release",
+      "scale_deployment"
+    ],
+    "sections": [
+      {
+        "section_name": "Symptom",
+        "chunk_index": 1,
+        "total_chunks": 5,
+        "chunk_id": "chunk 1/5",
+        "line_start": 11,
+        "line_end": 12,
+        "line_range": "L11-L12",
+        "allowed_actions": [],
+        "excerpt": "Golden signal p99 latency spikes significantly above normal baseline (> 500ms). Downstream services encounter RPC connection timeouts and deadline exceeded errors."
+      },
+      {
+        "section_name": "Probable Causes",
+        "chunk_index": 2,
+        "total_chunks": 5,
+        "chunk_id": "chunk 2/5",
+        "line_start": 14,
+        "line_end": 17,
+        "line_range": "L14-L17",
+        "allowed_actions": [],
+        "excerpt": "1. Cross-service network congestion or faulty service mesh sidecar proxy 2. Single slow pod instance degrading load-balanced upstream requests 3. Backend service CPU throttling causing delayed request dispatch"
+      },
+      {
+        "section_name": "Investigation Steps",
+        "chunk_index": 3,
+        "total_chunks": 5,
+        "chunk_id": "chunk 3/5",
+        "line_start": 19,
+        "line_end": 22,
+        "line_range": "L19-L22",
+        "allowed_actions": [],
+        "excerpt": "1. Call `tempo_search` and `tempo_get_trace` to identify the latency breakdown along the call graph 2. Query Prometheus for p99 latency metrics grouped by service and pod instance 3. Check `k8s_get_pod_status` and CPU throttling metrics for pods on the critical path"
+      },
+      {
+        "section_name": "Remediation Steps",
+        "chunk_index": 4,
+        "total_chunks": 5,
+        "chunk_id": "chunk 4/5",
+        "line_start": 24,
+        "line_end": 27,
+        "line_range": "L24-L27",
+        "allowed_actions": [
+          "scale_deployment",
+          "rollback_release",
+          "restart_pod"
+        ],
+        "excerpt": "1. Scale up healthy backend replicas to absorb throughput and distribute load: `scale_deployment` 2. If latency is caused by a bad release or unindexed route: `rollback_release` 3. Restart degraded or unresponsive single pod instances: `restart_pod`"
+      },
+      {
+        "section_name": "Escalation Criteria",
+        "chunk_index": 5,
+        "total_chunks": 5,
+        "chunk_id": "chunk 5/5",
+        "line_start": 29,
+        "line_end": 32,
+        "line_range": "L29-L32",
+        "allowed_actions": [],
+        "excerpt": "- Latency spike affects inter-cluster ingress or transit routing - P99 latency remains degraded after horizontal replica scaling - Cascading timeouts propagate across all tier-1 user-facing flows"
+      }
+    ]
+  },
+  {
+    "id": "node-pressure-eviction",
+    "title": "Node Pressure and Eviction Remediation",
+    "types": [
+      "runbook",
+      "procedure"
+    ],
+    "tags": [
+      "node",
+      "eviction",
+      "diskpressure",
+      "memorypressure",
+      "kubernetes"
+    ],
+    "symptoms": [
+      "Pods evicted due to node disk pressure",
+      "memory pressure",
+      "PID pressure"
+    ],
+    "summary": "Cluster node condition recovery and pod rescheduling during disk, memory, or PID pressure evictions.",
+    "allowed_actions": [
+      "drain_node",
+      "scale_deployment",
+      "update_resource_limits"
+    ],
+    "sections": [
+      {
+        "section_name": "Symptom",
+        "chunk_index": 1,
+        "total_chunks": 5,
+        "chunk_id": "chunk 1/5",
+        "line_start": 11,
+        "line_end": 12,
+        "line_range": "L11-L12",
+        "allowed_actions": [],
+        "excerpt": "Kubernetes node condition reports `DiskPressure`, `MemoryPressure`, or `PIDPressure`. Pods on the node transition to `Evicted` status."
+      },
+      {
+        "section_name": "Probable Causes",
+        "chunk_index": 2,
+        "total_chunks": 5,
+        "chunk_id": "chunk 2/5",
+        "line_start": 14,
+        "line_end": 17,
+        "line_range": "L14-L17",
+        "allowed_actions": [],
+        "excerpt": "1. Unbounded log file growth or container ephemeral storage accumulation on the node 2. Node-level memory saturation starving system daemons 3. Colocated noisy neighbor pod consuming disproportionate host resources"
+      },
+      {
+        "section_name": "Investigation Steps",
+        "chunk_index": 3,
+        "total_chunks": 5,
+        "chunk_id": "chunk 3/5",
+        "line_start": 19,
+        "line_end": 22,
+        "line_range": "L19-L22",
+        "allowed_actions": [],
+        "excerpt": "1. Call `k8s_get_node_metrics` to inspect host CPU, memory, and disk usage across cluster nodes 2. Check `k8s_get_events` for eviction events and node condition state changes 3. Call `k8s_get_pod_status` to identify failing or evicted pods on the affected node"
+      },
+      {
+        "section_name": "Remediation Steps",
+        "chunk_index": 4,
+        "total_chunks": 5,
+        "chunk_id": "chunk 4/5",
+        "line_start": 24,
+        "line_end": 27,
+        "line_range": "L24-L27",
+        "allowed_actions": [
+          "drain_node",
+          "scale_deployment",
+          "update_resource_limits"
+        ],
+        "excerpt": "1. Drain degraded node safely to reschedule workloads onto healthy nodes: `drain_node` 2. If workload pods require redistribution or reduced pressure: `scale_deployment` 3. Update resource limits on runaway pods to enforce host cgroup boundaries: `update_resource_limits`"
+      },
+      {
+        "section_name": "Escalation Criteria",
+        "chunk_index": 5,
+        "total_chunks": 5,
+        "chunk_id": "chunk 5/5",
+        "line_start": 29,
+        "line_end": 32,
+        "line_range": "L29-L32",
+        "allowed_actions": [],
+        "excerpt": "- More than 50% of cluster nodes reporting concurrent pressure conditions - Critical control-plane components or DaemonSets failing to schedule - Insufficient cluster capacity to accommodate evacuated workloads"
+      }
+    ]
+  },
+  {
+    "id": "oom-killed-pod",
+    "title": "OOMKilled Pod Remediation",
+    "types": [
+      "runbook",
+      "procedure"
+    ],
+    "tags": [
+      "memory",
+      "oom",
+      "pod",
+      "kubernetes"
+    ],
+    "symptoms": [
+      "OOMKilled pods",
+      "memory saturation above 90%"
+    ],
+    "summary": "Standard remediation procedure for Kubernetes pods terminated with OOMKilled status due to container memory saturation.",
+    "allowed_actions": [
+      "restart_pod",
+      "rollback_release",
+      "update_resource_limits"
+    ],
+    "sections": [
+      {
+        "section_name": "Symptom",
+        "chunk_index": 1,
+        "total_chunks": 5,
+        "chunk_id": "chunk 1/5",
+        "line_start": 11,
+        "line_end": 12,
+        "line_range": "L11-L12",
+        "allowed_actions": [],
+        "excerpt": "Pod(s) terminated with OOMKilled reason. Memory metrics show sustained pressure above 90% before kill."
+      },
+      {
+        "section_name": "Probable Causes",
+        "chunk_index": 2,
+        "total_chunks": 5,
+        "chunk_id": "chunk 2/5",
+        "line_start": 14,
+        "line_end": 17,
+        "line_range": "L14-L17",
+        "allowed_actions": [],
+        "excerpt": "1. Memory leak in application code \u2014 unbounded growth over time 2. Resource limits set too low for actual workload 3. Sudden traffic spike exceeding configured limits"
+      },
+      {
+        "section_name": "Investigation Steps",
+        "chunk_index": 3,
+        "total_chunks": 5,
+        "chunk_id": "chunk 3/5",
+        "line_start": 19,
+        "line_end": 22,
+        "line_range": "L19-L22",
+        "allowed_actions": [],
+        "excerpt": "1. Check `k8s_get_events` for OOMKilled events in namespace 2. Review memory usage trend (last 30 min) in Prometheus 3. Check recent deployments \u2014 was a new version rolled out recently?"
+      },
+      {
+        "section_name": "Remediation Steps",
+        "chunk_index": 4,
+        "total_chunks": 5,
+        "chunk_id": "chunk 4/5",
+        "line_start": 24,
+        "line_end": 27,
+        "line_range": "L24-L27",
+        "allowed_actions": [
+          "restart_pod",
+          "rollback_release",
+          "update_resource_limits"
+        ],
+        "excerpt": "1. Restart pod to clear immediate OOM state: `restart_pod` 2. If memory grows again rapidly \u2192 rollback to previous deployment version: `rollback_release` 3. If no recent deployment \u2192 increase memory limit: `update_resource_limits`"
+      },
+      {
+        "section_name": "Escalation Criteria",
+        "chunk_index": 5,
+        "total_chunks": 5,
+        "chunk_id": "chunk 5/5",
+        "line_start": 29,
+        "line_end": 32,
+        "line_range": "L29-L32",
+        "allowed_actions": [],
+        "excerpt": "- Memory grows to OOM threshold again within 10 minutes of restart - Multiple pods in same deployment affected simultaneously - Database or stateful service is the OOMKilled component"
+      }
+    ]
+  },
+  {
+    "id": "pm-2025-04-coredns",
+    "title": "CoreDNS Failure Postmortem and Operational Rules",
+    "types": [
+      "postmortem",
+      "rule"
+    ],
+    "tags": [
+      "network",
+      "dns",
+      "coredns",
+      "timeout",
+      "kubernetes"
+    ],
+    "symptoms": [
+      "Intermittent DNS resolution timeout",
+      "503 Service Unavailable",
+      "upstream lookup failure"
+    ],
+    "summary": "Postmortem from historical DNS saturation event. Defines hard operational rules preventing concurrent node drains during DNS flapping.",
+    "allowed_actions": [
+      "restart_pod",
+      "scale_deployment"
+    ],
+    "sections": [
+      {
+        "section_name": "Symptom",
+        "chunk_index": 1,
+        "total_chunks": 5,
+        "chunk_id": "chunk 1/5",
+        "line_start": 11,
+        "line_end": 12,
+        "line_range": "L11-L12",
+        "allowed_actions": [],
+        "excerpt": "Intermittent cross-service connection timeouts and 503 errors caused by DNS lookup failures across Kubernetes CoreDNS pods."
+      },
+      {
+        "section_name": "Probable Causes",
+        "chunk_index": 2,
+        "total_chunks": 5,
+        "chunk_id": "chunk 2/5",
+        "line_start": 14,
+        "line_end": 16,
+        "line_range": "L14-L16",
+        "allowed_actions": [],
+        "excerpt": "1. CoreDNS replicas were overwhelmed by sudden burst of un-cached external queries 2. Unhealthy node drain evacuated all CoreDNS pods simultaneously without upstream fallback"
+      },
+      {
+        "section_name": "Operational Rules",
+        "chunk_index": 3,
+        "total_chunks": 5,
+        "chunk_id": "chunk 3/5",
+        "line_start": 18,
+        "line_end": 21,
+        "line_range": "L18-L21",
+        "allowed_actions": [
+          "scale_deployment",
+          "restart_pod"
+        ],
+        "excerpt": "1. Never drain CoreDNS nodes simultaneously without verifying fallback upstream resolvers. 2. When DNS latency spikes occur, scale CoreDNS deployment first before restarting pods: `scale_deployment`. 3. Pod restarts must be rate-limited to avoid thundering herd on cluster DNS: `r"
+      },
+      {
+        "section_name": "Remediation Steps",
+        "chunk_index": 4,
+        "total_chunks": 5,
+        "chunk_id": "chunk 4/5",
+        "line_start": 23,
+        "line_end": 25,
+        "line_range": "L23-L25",
+        "allowed_actions": [
+          "scale_deployment",
+          "restart_pod"
+        ],
+        "excerpt": "1. Scale up CoreDNS deployment replicas: `scale_deployment` 2. Rate-limited restart of stuck DNS pods: `restart_pod`"
+      },
+      {
+        "section_name": "Escalation Criteria",
+        "chunk_index": 5,
+        "total_chunks": 5,
+        "chunk_id": "chunk 5/5",
+        "line_start": 27,
+        "line_end": 29,
+        "line_range": "L27-L29",
+        "allowed_actions": [],
+        "excerpt": "- Upstream cloud provider DNS resolvers unreachable - Latency persists after 3x horizontal scale"
+      }
+    ],
+    "rules": [
+      "Never drain CoreDNS nodes simultaneously without verifying fallback upstream resolvers.",
+      "When DNS latency spikes occur, scale CoreDNS deployment first before restarting pods: `scale_deployment`.",
+      "Pod restarts must be rate-limited to avoid thundering herd on cluster DNS: `restart_pod`."
+    ],
+    "rule_text": "1. Never drain CoreDNS nodes simultaneously without verifying fallback upstream resolvers.\n2. When DNS latency spikes occur, scale CoreDNS deployment first before restarting pods: `scale_deployment`.\n3. Pod restarts must be rate-limited to avoid thundering herd on cluster DNS: `restart_pod`."
+  }
+]

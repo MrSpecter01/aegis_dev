@@ -1,0 +1,100 @@
+system:
+  environment: development
+  log_level: INFO
+  api_port: 8080
+  api_url: http://localhost:8080
+redis:
+  url: redis://redis:6379
+  db: 0
+qdrant:
+  url: http://qdrant:6333
+  collection: aegis_runbooks
+  embedding_provider: ollama
+  embedding_model: qwen3-embedding:0.6b-q8_0
+ollama:
+  url: http://host.docker.internal:11434
+telegram:
+  enabled: true
+  bot_url: http://aegis-telegram-bot:8088
+  service_port: 8088
+  notify_on_creation: true
+  notify_on_triage: true
+  notify_on_approval: true
+  notify_on_escalation: true
+  notify_on_closure: true
+ledger:
+  dump_on_close: true
+  dump_idle_seconds: 1800
+  redis_ttl_seconds: 86400
+  storage_path: /data/incidents
+ingestion:
+  correlation_window_seconds: 180
+  flap_window_seconds: 60
+  flap_threshold: 6
+  recurrence_window_seconds: 900
+  recurrence_threshold: 3
+  topology_max_hops: 2
+  consumer_group: aegis-correlator
+  consumer_name: consumer-1
+  severity_map:
+    critical: P1
+    warning: P2
+    info: P3
+  fingerprint_ttl_seconds: 3600
+  max_delivery_attempts: 3
+topology:
+  helm_dir: ./charts/online-boutique
+  snapshot_path: /data/topology_snapshot.json
+  query_budget_per_incident: 5
+  monitored_namespaces:
+    - boutique
+mcp_endpoints:
+  prometheus_url: http://prometheus:9090
+  loki_url: http://loki:3100
+  tempo_url: http://tempo:3200
+  jaeger_url: ""
+  flagd_url: ""
+  kubeconfig_path: /app/deploy/kubeconfig
+convergence:
+  bake_time_seconds_stateless: 20
+  bake_time_seconds_stateful: 40
+  poll_interval_seconds: 10
+  window_seconds: 60
+  slo:
+    error_rate_threshold: 0.01
+    p99_latency_ms: 500
+    cpu_saturation_threshold: 0.85
+    memory_saturation_threshold: 0.9
+  queries:
+    error_rate: ((sum(rate(traces_span_metrics_calls_total{service_name=~"{service}.*",status_code="STATUS_CODE_ERROR"}[2m30s]))
+      / clamp_min(sum(rate(traces_span_metrics_calls_total{service_name=~"{service}.*"}[2m30s])), 1))
+      or (sum(rate(http_requests_total{job=~"{service}.*",status=~"5.."}[2m30s]))
+      / clamp_min(sum(rate(http_requests_total{job=~"{service}.*"}[2m30s])), 1))) or vector(0)
+    p99_latency_ms: ((histogram_quantile(0.99, sum(rate(traces_span_metrics_duration_milliseconds_bucket{service_name=~"{service}.*"}[2m30s]))
+      by (le)) >= 0)
+      or (histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket{job=~"{service}.*"}[2m30s]))
+      by (le)) * 1000 >= 0)) or vector(0)
+    cpu_saturation: ((sum(rate(container_cpu_usage_seconds_total{pod=~"{service}.*",container!="",container!="POD"}[2m]))
+      / sum((container_spec_cpu_quota{pod=~"{service}.*",container!="",container!="POD"} > 0)
+      / container_spec_cpu_period{pod=~"{service}.*",container!="",container!="POD"})) >= 0)
+      or vector(0)
+    memory_saturation: ((sum(container_memory_working_set_bytes{pod=~"{service}.*",container!="",container!="POD"})
+      / sum(container_spec_memory_limit_bytes{pod=~"{service}.*",container!="",container!="POD"} > 0)) >= 0)
+      or vector(0)
+mcp_server:
+  host: 0.0.0.0
+  port: 9000
+embeddings:
+  openai_base_url: https://api.openai.com/v1
+  openai_model: text-embedding-3-small
+  gemini_model: text-embedding-004
+evaluation:
+  judge:
+    provider: gemini
+    model: gemini-3.5-flash-lite
+    fallbacks:
+      - gemini-3.1-flash-lite
+      - gemma-4-31b
+    max_calls_per_run: 50
+    rate_limit_rpm: 15
+    temperature: 0.0

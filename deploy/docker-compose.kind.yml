@@ -1,0 +1,31 @@
+# Optional Docker Compose override for running the Boutique sample against a local Kind cluster.
+# Usage:
+#   docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.kind.yml --profile monitoring up -d --build
+services:
+  prometheus:
+    volumes:
+      - ./prometheus/k8s_token:/etc/prometheus/k8s_token:ro
+    networks:
+      - default
+      - kind
+
+  alertmanager:
+    networks:
+      - default
+      - kind
+
+  aegis-api:
+    networks:
+      - default
+      - kind
+
+  aegis-mcp:
+    networks:
+      - default
+      - kind
+
+networks:
+  kind:
+    name: kind
+    external: true
+

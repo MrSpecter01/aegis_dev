@@ -1,0 +1,58 @@
+# Aegis Multi-Entity Identity & Scoped Access Registry (Template)
+# Copy this file to `config/identities.yaml` for local deployment.
+# ---------------------------------------------------------------------------
+# SECURITY & PRIVACY INVARIANT:
+#   - RBAC roles, scopes, and entity definitions live here.
+#   - NEVER place raw API keys, tokens, or personal Telegram user IDs in YAML.
+#   - Reference environment variables via `api_key_env` and `telegram_user_id_env`
+#     and store actual values strictly in `deploy/.env`.
+#   - An entry is only activated when its referenced environment variable is set.
+# ---------------------------------------------------------------------------
+
+operators:
+  - id: op-admin
+    username: admin
+    display_name: Aegis Admin
+    role: admin
+    api_key_env: AEGIS_API_KEY
+    telegram_user_id_env: AEGIS_ADMIN_TELEGRAM_ID
+    enabled: true
+
+  # Example: per-operator API key + Telegram user ID binding (set in deploy/.env):
+  # - id: op-john-doe
+  #   username: john.doe
+  #   display_name: John Doe
+  #   role: operator
+  #   api_key_env: AEGIS_OPERATOR_JOHN_DOE_KEY
+  #   telegram_user_id_env: AEGIS_OPERATOR_JOHN_DOE_TELEGRAM_ID
+  #   enabled: true
+
+webhooks:
+  - id: wh-alertmanager
+    name: alertmanager
+    source_type: alertmanager
+    api_key_env: AEGIS_ALERTMANAGER_API_KEY
+    scopes:
+      - alerts:ingest
+    enabled: true
+
+external_clients: []
+  # Example: external read-only reporting integration or automation client
+  # - id: ext-automation
+  #   name: automation-client
+  #   api_key_env: AEGIS_EXT_CLIENT_KEY
+  #   scopes:
+  #     - incidents:read
+  #     - system:read
+  #   enabled: true
+
+internal_services:
+  - phase1-worker
+  - phase2-worker
+  - phase3-worker
+  - aegis-telegram-bot
+  - aegis-mcp
+  - aegis-topology-mcp
+  - aegis-api
+  - aegis-cli
+

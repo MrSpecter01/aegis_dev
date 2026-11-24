@@ -1,0 +1,178 @@
+policies:
+  default_requires_approval: true
+  allowed_namespaces: &id002
+  - boutique
+  - default
+  tools: &id001
+    restart_pod:
+      pre_approved: false
+      allowed_namespaces:
+      - boutique
+      - default
+      requires_approval: true
+    scale_deployment:
+      pre_approved: false
+      max_replicas: 20
+      requires_approval: true
+    rollback_release:
+      pre_approved: false
+      requires_approval: true
+      severity_override: true
+      aliases:
+      - rollback_deployment
+    update_resource_limits:
+      pre_approved: false
+      max_cpu_increase_ratio: 2.0
+      max_memory_increase_ratio: 2.0
+      requires_approval: true
+      aliases:
+      - patch_deployment_resources
+      - patch_resource_limits
+    drain_node:
+      pre_approved: false
+      requires_approval: true
+      strict_confirmation: true
+      severity_override: true
+    toggle_feature_flag:
+      pre_approved: false
+      requires_approval: true
+      allowed_environments:
+      - production
+      - staging
+      - development
+      aliases:
+      - set_feature_flag
+    get_feature_flag:
+      pre_approved: true
+      requires_approval: false
+    prometheus_query:
+      pre_approved: true
+      requires_approval: false
+    prometheus_query_range:
+      pre_approved: true
+      requires_approval: false
+    loki_query:
+      pre_approved: true
+      requires_approval: false
+    loki_query_range:
+      pre_approved: true
+      requires_approval: false
+    tempo_search_traces:
+      pre_approved: true
+      requires_approval: false
+    tempo_get_trace:
+      pre_approved: true
+      requires_approval: false
+    get_pod_status:
+      pre_approved: true
+      requires_approval: false
+    k8s_get_pod_diagnostics:
+      pre_approved: true
+      requires_approval: false
+    get_pod_logs:
+      pre_approved: true
+      requires_approval: false
+    get_service_endpoints:
+      pre_approved: true
+      requires_approval: false
+    get_k8s_events:
+      pre_approved: true
+      requires_approval: false
+    topology_get_upstream:
+      pre_approved: true
+      requires_approval: false
+    topology_get_downstream:
+      pre_approved: true
+      requires_approval: false
+    topology_get_blast_radius:
+      pre_approved: true
+      requires_approval: false
+    topology_get_critical_path:
+      pre_approved: true
+      requires_approval: false
+    topology_get_service:
+      pre_approved: true
+      requires_approval: false
+    topology_query_node:
+      pre_approved: true
+      requires_approval: false
+    qdrant_search_runbooks:
+      pre_approved: true
+      requires_approval: false
+    git_get_commit:
+      pre_approved: true
+      requires_approval: false
+    git_get_file:
+      pre_approved: true
+      requires_approval: false
+    git_get_diff:
+      pre_approved: true
+      requires_approval: false
+    git_list_commits:
+      pre_approved: true
+      requires_approval: false
+    argocd_get_app:
+      pre_approved: true
+      requires_approval: false
+    argocd_get_sync_status:
+      pre_approved: true
+      requires_approval: false
+    argocd_get_history:
+      pre_approved: true
+      requires_approval: false
+    argocd_get_diff:
+      pre_approved: true
+      requires_approval: false
+tools: *id001
+approval_matrix:
+  P1:
+    required: true
+    channels:
+    - dashboard
+    - telegram
+    timeout_seconds: 900
+    default_on_timeout: escalate
+  P2:
+    required: true
+    channels:
+    - dashboard
+    - telegram
+    timeout_seconds: 900
+    default_on_timeout: escalate
+  P3:
+    required: false
+    auto_approve_pre_approved: true
+    timeout_seconds: 600
+    default_on_timeout: approve
+  P4:
+    required: false
+    auto_approve_pre_approved: true
+    timeout_seconds: 300
+    default_on_timeout: approve
+confidence_thresholds:
+  P1: 0.85
+  P2: 0.8
+  P3: 0.7
+  P4: 0.6
+cooldowns:
+  restart_pod: 180
+  scale_deployment: 120
+  rollback_release: 300
+  update_resource_limits: 180
+  toggle_feature_flag: 60
+convergence:
+  window_seconds: 60
+  poll_interval_seconds: 10
+  required_consecutive_successes: 3
+  metrics:
+  - name: error_rate
+    threshold: 0.05
+    operator: lte
+  - name: latency_p99
+    threshold: 2.0
+    operator: lte
+  - name: cpu_saturation
+    threshold: 0.9
+    operator: lte
+default_requires_approval: true
+allowed_namespaces: *id002

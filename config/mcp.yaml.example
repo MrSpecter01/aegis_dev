@@ -1,0 +1,96 @@
+# =============================================================================
+# Aegis — MCP Server Registry Template (mcp.yaml.example)
+# Copy this file to config/mcp.yaml and customize for your deployment architecture.
+#
+# Execution Modes:
+# 1. Unified Server (Default, port 9000):
+#    Point all servers to http://aegis-mcp:9000/mcp (or http://localhost:9000/mcp).
+# 2. Isolated Containers (Profile: mcp-isolated, ports 9001-9008):
+#    Point each domain to its dedicated port as shown below.
+# =============================================================================
+
+mcp_servers:
+  prometheus:
+    server_url: "http://aegis-prometheus-mcp:9001/mcp"
+    tools:
+      - prometheus_query
+
+  loki:
+    server_url: "http://aegis-loki-mcp:9002/mcp"
+    tools:
+      - loki_query
+
+  tempo:
+    server_url: "http://aegis-tempo-mcp:9003/mcp"
+    tools:
+      - tempo_get_trace
+      - tempo_search
+
+  kubernetes:
+    server_url: "http://aegis-k8s-mcp:9004/mcp"
+    tools:
+      - k8s_get_events
+      - k8s_get_pod_status
+      - k8s_get_node_metrics
+      - k8s_get_configmap_diff
+      - restart_pod
+      - scale_deployment
+      - rollback_release
+      - update_resource_limits
+      - drain_node
+
+  argocd:
+    server_url: "http://aegis-argocd-mcp:9005/mcp"
+    tools:
+      - argocd_get_sync_history
+      - argocd_get_app_status
+
+  github:
+    server_url: "http://aegis-github-mcp:9006/mcp"
+    tools:
+      - github_get_commits
+
+  featureflags:
+    server_url: "http://aegis-api:9007/mcp"
+    tools:
+      - toggle_feature_flag
+
+  qdrant:
+    server_url: "http://aegis-mcp:9000/mcp"
+    tools:
+      - qdrant_search
+
+  topology:
+    server_url: "http://aegis-topology-mcp:9008/mcp"
+    tools:
+      - topology_query_node
+
+# -----------------------------------------------------------------------------
+# External Authenticated HTTP / SSE MCP Server Example
+# -----------------------------------------------------------------------------
+#   datadog_external:
+#     server_url: "https://mcp.example.com/sse"
+#     transport: "sse"                  # streamable_http (default), http, sse, stdio
+#     external: true                    # Prevents AEGIS_MCP_URL from rewriting URL
+#     auth_type: "api_key"              # bearer (default), api_key, header, basic, none
+#     auth_header: "X-API-Key"          # Custom header name (defaults to X-API-Key or Authorization)
+#     api_key: "${EXT_MCP_TOKEN}"       # Supports ${VAR} and ${VAR:-default} (or api_key_env: EXT_MCP_TOKEN)
+#     headers:
+#       X-Tenant-ID: "${TENANT_ID:-default}"
+#     timeout: 30.0
+#     tools:
+#       - name: query_external_metrics
+#         tags: [metrics, read]
+#
+# -----------------------------------------------------------------------------
+# Local Subprocess STDIO MCP Server Example
+# -----------------------------------------------------------------------------
+#   local_git_mcp:
+#     transport: "stdio"
+#     command: "npx"
+#     args: ["-y", "@modelcontextprotocol/server-git", "--repository", "/app"]
+#     env:
+#       GIT_TOKEN: "${GITHUB_TOKEN}"
+#     tools:
+#       - name: git_log
+#         tags: [git, read]

@@ -1,0 +1,108 @@
+# =============================================================================
+# Aegis — System Configuration Template (system.yaml.example)
+# Copy this file to config/system.yaml and customize for your environment.
+# =============================================================================
+
+system:
+  environment: development            # Environment mode: development, staging, production
+  log_level: INFO                     # Logging level: DEBUG, INFO, WARNING, ERROR
+  api_port: 8080                      # FastAPI control plane listening port
+  api_key: ""                         # Shared API key for control plane auth (or set AEGIS_API_KEY)
+  api_url: http://localhost:8080      # Base control plane URL reachable by workers
+
+redis:
+  url: redis://localhost:6379         # Redis connection URL (or set REDIS_URL)
+  db: 0                               # Redis database index
+
+qdrant:
+  url: http://localhost:6333          # Qdrant vector database URL (or set QDRANT_URL)
+  collection: aegis_runbooks          # Target collection name for runbooks and incident RAG
+  embedding_provider: ollama          # Embedding provider: ollama, openai, or gemini
+  embedding_model: qwen3-embedding:0.6b-q8_0  # Vector model name for embeddings
+
+ollama:
+  url: http://localhost:11434         # Local Ollama endpoint for LLMs and embeddings (or set OLLAMA_URL)
+
+telegram:
+  enabled: true                       # Enable or disable Telegram HITL bot and notifications
+  bot_token: ""                       # Telegram Bot API token from @BotFather (or set TELEGRAM_BOT_TOKEN)
+  chat_id: ""                         # Target Telegram chat ID for notifications (or set TELEGRAM_CHAT_ID)
+  bot_url: http://localhost:8088      # Internal endpoint for Telegram bot microservice
+  service_port: 8088                  # Port for Telegram bot microservice internal webserver
+  notify_on_creation: true            # Notify when an incident is created
+  notify_on_triage: true              # Dispatch Phase 1 triage summary to Telegram
+  notify_on_approval: true            # Dispatch SAG action proposal with inline [Approve] / [Deny] buttons
+  notify_on_escalation: true          # Notify when an incident auto-escalates or is force-escalated
+  notify_on_closure: true             # Deliver incident closure summary and post-mortem report
+
+ledger:
+  dump_on_close: true                 # Automatically dump ledger JSON and Markdown report to disk on closure
+  dump_idle_seconds: 1800             # Idle time (seconds) before flushing inactive Redis incident data to disk
+  redis_ttl_seconds: 86400            # Redis TTL (seconds) before evicting archived/closed incident keys from RAM
+  storage_path: /data/incidents       # Persistent disk directory for closed/archived incident artifacts
+
+ingestion:
+  correlation_window_seconds: 120     # Time window (seconds) to correlate firing alerts into a single incident
+  flap_window_seconds: 60             # Alert flapping detection sliding window
+  flap_threshold: 5                   # Flap transition count threshold to suppress alert noise
+  consumer_group: aegis-correlator    # Redis Streams consumer group for alert ingestion
+  consumer_name: consumer-1           # Worker consumer instance identifier
+  severity_map:                       # Map incoming external alert severity labels to Aegis tiers
+    critical: P1
+    warning: P2
+    info: P3
+  fingerprint_ttl_seconds: 3600       # Deduplication fingerprint retention TTL in Redis
+  max_delivery_attempts: 3            # Poison-pill dead-letter threshold before routing to stream:alert:dead
+
+topology:
+  helm_dir: ./charts                  # Directory containing Kubernetes/Helm manifests to parse
+  snapshot_path: /data/topology_snapshot.json # Local snapshot file for offline topology graph recovery
+  query_budget_per_incident: 5        # Maximum live topology queries allowed per investigator agent
+
+mcp_endpoints:
+  prometheus_url: http://localhost:9090 # Prometheus metrics server endpoint
+  loki_url: http://localhost:3100     # Loki log aggregation endpoint
+  tempo_url: http://localhost:3200    # Tempo distributed tracing endpoint
+  kubernetes_url: ""                  # Monitored Kubernetes API server URL (empty = in-cluster / kubeconfig)
+  kubernetes_token: ""                # Service account bearer token for Kubernetes API
+  kubeconfig_path: ""                 # Path to kubeconfig file (defaults to ~/.kube/config)
+  argocd_url: ""                      # ArgoCD server API URL
+  argocd_token: ""                    # ArgoCD API auth token
+  github_token: ""                    # GitHub personal access token for commit/diff tools
+
+convergence:
+  bake_time_seconds_stateless: 60     # Cool-down wait time before monitoring stateless microservice fixes
+  bake_time_seconds_stateful: 120     # Cool-down wait time before monitoring stateful/database fixes
+  poll_interval_seconds: 30           # Signal evaluation polling frequency during convergence window
+  window_seconds: 300                 # Total duration (seconds) signals must remain within SLO
+  slo:
+    error_rate_threshold: 0.01        # Maximum acceptable HTTP 5xx error ratio (1%)
+    p99_latency_ms: 500.0             # Maximum acceptable p99 latency (500 milliseconds)
+    cpu_saturation_threshold: 0.85    # Maximum acceptable container CPU saturation ratio (85%)
+    memory_saturation_threshold: 0.90 # Maximum acceptable container memory saturation ratio (90%)
+  queries:
+    error_rate: 'sum(rate(http_requests_total{job=~"{service}.*",status=~"5.."}[2m])) / sum(rate(http_requests_total{job=~"{service}.*"}[2m]))'
+    p99_latency_ms: 'histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket{job=~"{service}.*"}[2m])) by (le)) * 1000'
+    cpu_saturation: 'sum(rate(container_cpu_usage_seconds_total{pod=~"{service}.*"}[2m])) / (sum(container_spec_cpu_quota{pod=~"{service}.*"}) / sum(container_spec_cpu_period{pod=~"{service}.*"}))'
+    memory_saturation: 'sum(container_memory_working_set_bytes{pod=~"{service}.*"}) / sum(container_spec_memory_limit_bytes{pod=~"{service}.*"})'
+
+mcp_server:
+  host: 0.0.0.0                       # FastMCP server listening host
+  port: 9000                          # FastMCP server listening port (unified mode)
+
+embeddings:
+  openai_base_url: https://api.openai.com/v1
+  openai_model: text-embedding-3-small
+  gemini_model: text-embedding-004
+
+evaluation:
+  judge:
+    provider: gemini
+    model: gemini-3.5-flash-lite
+    fallbacks:
+      - gemini-3.1-flash-lite
+      - gemma-4-31b
+    api_key: null                       # Inherits providers.google_api_key or GEMINI_API_KEY if null
+    max_calls_per_run: 50
+    rate_limit_rpm: 15
+    temperature: 0.0

@@ -1,0 +1,24 @@
+{
+  "agent_role": "change_config_investigator",
+  "hypothesis": "No code changes deployed to cartservice within 30m window; paymentservice deployed 15m prior",
+  "confidence": 0.78,
+  "evidence": [
+    {
+      "source_tool": "github_get_commits",
+      "query_or_cmd": "cartservice",
+      "raw_output": "Latest commit 9a8b7c6 deployed 4 days ago"
+    },
+    {
+      "source_tool": "argocd_sync_history",
+      "query_or_cmd": "boutique-app",
+      "raw_output": "Sync healthy at rev e4f5a6b 2 hours ago"
+    }
+  ],
+  "verbatim_signals": {
+    "cartservice_commit": "9a8b7c6",
+    "argocd_rev": "e4f5a6b"
+  },
+  "infra_flags": {},
+  "recommended_actions": [],
+  "truncated": false
+}

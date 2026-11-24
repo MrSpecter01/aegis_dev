@@ -1,0 +1,635 @@
+# Aegis Infrastructure Stack — Docker Compose
+# Usage:
+#   Production (core infra only: Redis, Qdrant, Grafana):
+#     docker compose up -d
+#     (Grafana points to external monitoring cluster via .env PROMETHEUS_URL / LOKI_URL / TEMPO_URL)
+#
+#   Dev / Demo (built-in LGTM telemetry stack + local Ollama):
+#     COMPOSE_PROFILES=monitoring docker compose up -d
+#     (Ensure local Ollama is running at http://localhost:11434 if LLM needed)
+#
+#   CI / Full self-contained (built-in LGTM + Dockerized Ollama):
+#     COMPOSE_PROFILES=monitoring,ollama docker compose up -d
+
+services:
+
+  # ---------------------------------------------------------------------------
+  # Base Python Image — shared build stage for all Aegis Python services
+  # ---------------------------------------------------------------------------
+  aegis-base:
+    build:
+      context: ..
+      dockerfile: Dockerfile.base
+    image: aegis-base:latest
+    command: ["python", "-c", "pass"]
+    restart: "no"
+
+  # ---------------------------------------------------------------------------
+  # Redis — state store, job queues, session memory
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: aegis-redis
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Qdrant — vector DB for runbooks and prior incidents
+  # ---------------------------------------------------------------------------
+  qdrant:
+    image: qdrant/qdrant:v1.19.1
+    container_name: aegis-qdrant
+    ports:
+      - "${QDRANT_PORT:-6333}:6333"
+    volumes:
+      - qdrant-data:/qdrant/storage
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/6333'"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Ollama — local LLM serving (profile: ollama)
+  # Omit --profile ollama to use your local Ollama instead.
+  # ---------------------------------------------------------------------------
+  ollama:
+    image: ollama/ollama:latest
+    container_name: aegis-ollama
+    ports:
+      - "${OLLAMA_PORT:-11434}:11434"
+    volumes:
+      - ollama-models:/root/.ollama
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:11434/api/tags || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Prometheus — metrics collection (profile: monitoring)
+  # ---------------------------------------------------------------------------
+  prometheus:
+    image: prom/prometheus:v3.14.0
+    container_name: aegis-prometheus
+    profiles:
+      - monitoring
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    volumes:
+      - prometheus-data:/prometheus
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ../seed/alert_rules:/etc/prometheus/rules:ro
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=15d"
+      - "--web.enable-lifecycle"
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider -q http://localhost:9090/-/healthy || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - default
+
+  # ---------------------------------------------------------------------------
+  # Alertmanager — alert routing and webhook dispatch (profile: monitoring)
+  # ---------------------------------------------------------------------------
+  alertmanager:
+    image: prom/alertmanager:v0.34.0
+    container_name: aegis-alertmanager
+    profiles:
+      - monitoring
+    ports:
+      - "${ALERTMANAGER_PORT:-9093}:9093"
+    volumes:
+      - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    command:
+      - "--config.file=/etc/alertmanager/alertmanager.yml"
+      - "--storage.path=/alertmanager"
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider -q http://localhost:9093/-/healthy || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - default
+
+  # ---------------------------------------------------------------------------
+  # Loki — log aggregation (profile: monitoring)
+  # ---------------------------------------------------------------------------
+  loki:
+    image: grafana/loki:3.7.0
+    container_name: aegis-loki
+    profiles:
+      - monitoring
+    ports:
+      - "${LOKI_PORT:-3100}:3100"
+    volumes:
+      - loki-data:/loki
+      - ./loki/loki-config.yaml:/etc/loki/local-config.yaml:ro
+    command:
+      - "-config.file=/etc/loki/local-config.yaml"
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Tempo — distributed tracing (profile: monitoring)
+  # ---------------------------------------------------------------------------
+  tempo:
+    image: grafana/tempo:3.0.3
+    container_name: aegis-tempo
+    profiles:
+      - monitoring
+    ports:
+      - "${TEMPO_PORT:-3200}:3200"    # Tempo HTTP API
+      - "${OTEL_GRPC_PORT:-4317}:4317"    # OTLP gRPC receiver
+      - "${OTEL_HTTP_PORT:-4318}:4318"    # OTLP HTTP receiver
+    volumes:
+      - tempo-data:/var/tempo
+      - ./tempo/tempo-config.yaml:/etc/tempo/tempo.yaml:ro
+    command:
+      - "-config.file=/etc/tempo/tempo.yaml"
+      - "-target=all"
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Grafana — observability dashboards (profile: monitoring)
+  # ---------------------------------------------------------------------------
+  grafana:
+    image: grafana/grafana:13.2.1
+    container_name: aegis-grafana
+    profiles:
+      - monitoring
+    ports:
+      - "${GRAFANA_PORT:-3001}:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GF_SECURITY_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GF_SECURITY_ADMIN_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - PROMETHEUS_URL=${PROMETHEUS_URL:-http://prometheus:9090}
+      - LOKI_URL=${LOKI_URL:-http://loki:3100}
+      - TEMPO_URL=${TEMPO_URL:-http://tempo:3200}
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:3000/api/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Aegis API Server (core service)
+  # ---------------------------------------------------------------------------
+  aegis-api:
+    build:
+      context: ..
+      dockerfile: services/api_server/Dockerfile
+      additional_contexts:
+        aegis-base: "service:aegis-base"
+    container_name: aegis-api
+    ports:
+      - "${AEGIS_API_PORT:-8080}:8080"
+    expose:
+      - "8081"
+    volumes:
+      - ../data:/data
+      - ../config:/app/config:rw
+      - ../seed:/app/seed:rw
+      - ../charts:/app/charts:ro
+      - ../shared:/app/shared:ro
+      - ../scripts:/app/scripts:ro
+      - ../services/api_server:/app/services/api_server:ro
+      - ./:/app/deploy:ro
+    env_file:
+      - path: ./.env
+        required: false
+      - path: ../.env
+        required: false
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - QDRANT_URL=${QDRANT_URL:-http://qdrant:6333}
+      - OLLAMA_URL=${OLLAMA_URL:-http://host.docker.internal:11434}
+      - AEGIS_MCP_URL=http://aegis-mcp:9000/mcp
+      - AEGIS_API_KEY=${AEGIS_API_KEY:-aegis-secret-key-dev}
+      - AEGIS_ALERTMANAGER_API_KEY=${AEGIS_ALERTMANAGER_API_KEY:-aegis-alertmanager-key-dev}
+      - AEGIS_INTERNAL_API_PORT=8081
+      - TELEGRAM_BOT_URL=http://aegis-telegram-bot:8088
+      - KUBECONFIG_PATH=${KUBECONFIG_PATH:-}
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8080/v1/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - default
+
+  # ---------------------------------------------------------------------------
+  # Aegis FastMCP Server (Core Unified service, port 9000)
+  # ---------------------------------------------------------------------------
+  aegis-mcp:
+    build:
+      context: ..
+      dockerfile: services/mcp/Dockerfile
+      additional_contexts:
+        aegis-base: "service:aegis-base"
+    container_name: aegis-mcp
+    ports:
+      - "${AEGIS_MCP_PORT:-9000}:9000"
+    volumes:
+      - ../config:/app/config:ro
+      - ./:/app/deploy:ro
+      - ../services/mcp:/app/services/mcp:ro
+      - ../shared:/app/shared:ro
+    environment:
+      - REDIS_URL=redis://redis:6379
+      - QDRANT_URL=${QDRANT_URL:-http://qdrant:6333}
+      - OLLAMA_URL=${OLLAMA_URL:-http://host.docker.internal:11434}
+      - KUBERNETES_URL=${KUBERNETES_URL:-}
+      - KUBERNETES_TOKEN=${KUBERNETES_TOKEN:-}
+      - KUBECONFIG_PATH=${KUBECONFIG_PATH:-}
+      - ARGOCD_URL=${ARGOCD_URL:-}
+      - ARGOCD_TOKEN=${ARGOCD_TOKEN:-}
+      - GITHUB_TOKEN=${GITHUB_TOKEN:-}
+      - PROMETHEUS_API_KEY=${PROMETHEUS_API_KEY:-}
+      - LOKI_API_KEY=${LOKI_API_KEY:-}
+      - TEMPO_API_KEY=${TEMPO_API_KEY:-}
+      - JAEGER_API_KEY=${JAEGER_API_KEY:-}
+      - FLAGD_API_KEY=${FLAGD_API_KEY:-}
+    depends_on:
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9000/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - default
+
+  # ---------------------------------------------------------------------------
+  # Isolated MCP Servers (profile: mcp-isolated, ports 9001-9008)
+  # ---------------------------------------------------------------------------
+  prometheus-mcp:
+    profiles:
+      - mcp-isolated
+    build:
+      context: ..
+      dockerfile: services/mcp/Dockerfile
+      additional_contexts:
+        aegis-base: "service:aegis-base"
+    container_name: aegis-prometheus-mcp
+    command: ["python", "-m", "services.mcp.standalone", "--service", "prometheus"]
+    ports:
+      - "9001:9001"
+    volumes:
+      - ../config:/app/config:ro
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9001/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  loki-mcp:
+    profiles:
+      - mcp-isolated
+    build:
+      context: ..
+      dockerfile: services/mcp/Dockerfile
+      additional_contexts:
+        aegis-base: "service:aegis-base"
+    container_name: aegis-loki-mcp
+    command: ["python", "-m", "services.mcp.standalone", "--service", "loki"]
+    ports:
+      - "9002:9002"
+    volumes:
+      - ../config:/app/config:ro
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9002/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  tempo-mcp:
+    profiles:
+      - mcp-isolated
+    build:
+      context: ..
+      dockerfile: services/mcp/Dockerfile
+      additional_contexts:
+        aegis-base: "service:aegis-base"
+    container_name: aegis-tempo-mcp
+    command: ["python", "-m", "services.mcp.standalone", "--service", "tempo"]
+    ports:
+      - "9003:9003"
+    volumes:
+      - ../config:/app/config:ro
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9003/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  k8s-mcp:
+    profiles:
+      - mcp-isolated
+    build:
+      context: ..
+      dockerfile: services/mcp/Dockerfile
+      additional_contexts:
+        aegis-base: "service:aegis-base"
+    container_name: aegis-k8s-mcp
+    command: ["python", "-m", "services.mcp.standalone", "--service", "kubernetes"]
+    ports:
+      - "9004:9004"
+    volumes:
+      - ../config:/app/config:ro
+      - ./:/app/deploy:ro
+    environment:
+      - KUBERNETES_URL=${KUBERNETES_URL:-}
+      - KUBERNETES_TOKEN=${KUBERNETES_TOKEN:-}
+      - KUBECONFIG_PATH=${KUBECONFIG_PATH:-}
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9004/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  argocd-mcp:
+    profiles:
+      - mcp-isolated
+    build:
+      context: ..
+      dockerfile: services/mcp/Dockerfile
+      additional_contexts:
+        aegis-base: "service:aegis-base"
+    container_name: aegis-argocd-mcp
+    command: ["python", "-m", "services.mcp.standalone", "--service", "argocd"]
+    ports:
+      - "9005:9005"
+    volumes:
+      - ../config:/app/config:ro
+    environment:
+      - ARGOCD_URL=${ARGOCD_URL:-}
+      - ARGOCD_TOKEN=${ARGOCD_TOKEN:-}
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9005/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  github-mcp:
+    profiles:
+      - mcp-isolated
+    build:
+      context: ..
+      dockerfile: services/mcp/Dockerfile
+      additional_contexts:
+        aegis-base: "service:aegis-base"
+    container_name: aegis-github-mcp
+    command: ["python", "-m", "services.mcp.standalone", "--service", "github"]
+    ports:
+      - "9006:9006"
+    volumes:
+      - ../config:/app/config:ro
+    environment:
+      - GITHUB_TOKEN=${GITHUB_TOKEN:-}
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9006/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Topology MCP Server (core service)
+  # ---------------------------------------------------------------------------
+  topology-mcp:
+    build:
+      context: ..
+      dockerfile: services/mcp/topology/Dockerfile
+      additional_contexts:
+        aegis-base: "service:aegis-base"
+    container_name: aegis-topology-mcp
+    ports:
+      - "${TOPOLOGY_MCP_PORT:-9008}:9008"
+    volumes:
+      - ../data:/data
+      - ../config:/app/config:ro
+      - ../shared:/app/shared:ro
+    environment:
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9008/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Phase 1 Worker — Investigator Agents (CrewAI Flows)
+  # ---------------------------------------------------------------------------
+  phase1-worker:
+    build:
+      context: ..
+      dockerfile: services/phase1_worker/Dockerfile
+      additional_contexts:
+        aegis-base: "service:aegis-base"
+    container_name: aegis-phase1-worker
+    volumes:
+      - ../config:/app/config:ro
+      - ../seed:/app/seed:ro
+      - ../data:/data:ro
+      - ../shared:/app/shared:ro
+      - ../services/phase1_worker:/app/services/phase1_worker:ro
+    environment:
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379}
+      - AEGIS_API_URL=${AEGIS_INTERNAL_API_URL:-http://aegis-api:8081}
+      - AEGIS_INTERNAL_API_URL=${AEGIS_INTERNAL_API_URL:-http://aegis-api:8081}
+      - OLLAMA_URL=${OLLAMA_URL:-http://host.docker.internal:11434}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
+      - AEGIS_PROMPTS_DIR=/app/seed/prompts
+      - AEGIS_CONFIG_DIR=/app/config
+      - AEGIS_MCP_URL=http://aegis-mcp:9000/mcp
+    depends_on:
+      redis:
+        condition: service_healthy
+      aegis-mcp:
+        condition: service_healthy
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Phase 2 Worker — Remediation Agent (LangGraph)
+  # ---------------------------------------------------------------------------
+  phase2-worker:
+    build:
+      context: ..
+      dockerfile: services/phase2_worker/Dockerfile
+      additional_contexts:
+        aegis-base: "service:aegis-base"
+    container_name: aegis-phase2-worker
+    volumes:
+      - ../config:/app/config:ro
+      - ../seed:/app/seed:ro
+      - ../data:/data:ro
+      - ../shared:/app/shared:ro
+      - ../services/phase2_worker:/app/services/phase2_worker:ro
+    environment:
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379}
+      - AEGIS_API_URL=${AEGIS_INTERNAL_API_URL:-http://aegis-api:8081}
+      - AEGIS_INTERNAL_API_URL=${AEGIS_INTERNAL_API_URL:-http://aegis-api:8081}
+      - OLLAMA_URL=${OLLAMA_URL:-http://host.docker.internal:11434}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
+      - AEGIS_PROMPTS_DIR=/app/seed/prompts
+      - AEGIS_CONFIG_DIR=/app/config
+      - AEGIS_MCP_URL=http://aegis-mcp:9000/mcp
+    depends_on:
+      redis:
+        condition: service_healthy
+      aegis-mcp:
+        condition: service_healthy
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Phase 3 Worker — Scribe Agent (LangGraph)
+  # ---------------------------------------------------------------------------
+  phase3-worker:
+    build:
+      context: ..
+      dockerfile: services/phase3_worker/Dockerfile
+      additional_contexts:
+        aegis-base: "service:aegis-base"
+    container_name: aegis-phase3-worker
+    volumes:
+      - ../config:/app/config:ro
+      - ../seed:/app/seed:ro
+      - ../data:/data
+      - ../shared:/app/shared:ro
+      - ../services/phase3_worker:/app/services/phase3_worker:ro
+    environment:
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379}
+      - AEGIS_API_URL=${AEGIS_INTERNAL_API_URL:-http://aegis-api:8081}
+      - AEGIS_INTERNAL_API_URL=${AEGIS_INTERNAL_API_URL:-http://aegis-api:8081}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID:-}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY:-}
+      - AEGIS_PROMPTS_DIR=/app/seed/prompts
+      - AEGIS_CONFIG_DIR=/app/config
+      - AEGIS_MCP_URL=http://aegis-mcp:9000/mcp
+    depends_on:
+      redis:
+        condition: service_healthy
+      aegis-api:
+        condition: service_healthy
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Telegram Bot Service (core service, port 8088)
+  # ---------------------------------------------------------------------------
+  aegis-telegram-bot:
+    build:
+      context: ..
+      dockerfile: services/telegram_bot/Dockerfile
+      additional_contexts:
+        aegis-base: "service:aegis-base"
+    container_name: aegis-telegram-bot
+    expose:
+      - "8088"
+    volumes:
+      - ../config:/app/config:ro
+      - ../data:/data:ro
+    environment:
+      - AEGIS_API_URL=${AEGIS_INTERNAL_API_URL:-http://aegis-api:8081}
+      - AEGIS_INTERNAL_API_URL=${AEGIS_INTERNAL_API_URL:-http://aegis-api:8081}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID:-}
+      - TELEGRAM_SERVICE_PORT=8088
+      - AEGIS_CONFIG_DIR=/app/config
+    depends_on:
+      aegis-api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8088/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Aegis Operational Dashboard (React SPA, port 3000)
+  # ---------------------------------------------------------------------------
+  aegis-dashboard:
+    build:
+      context: ../services/dashboard
+      dockerfile: Dockerfile
+    container_name: aegis-dashboard
+    ports:
+      - "${AEGIS_DASHBOARD_PORT:-3000}:3000"
+    environment:
+      - AEGIS_API_URL=http://aegis-api:8080
+    volumes:
+      - ../services/dashboard/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      aegis-api:
+        condition: service_healthy
+    restart: unless-stopped
+
+
+
+# ---------------------------------------------------------------------------
+# Named volumes — persist data across docker compose down/up
+# ---------------------------------------------------------------------------
+volumes:
+  redis-data:
+  qdrant-data:
+  ollama-models:
+  prometheus-data:
+  grafana-data:
+  loki-data:
+  tempo-data:
+
+networks:
+  default:
+  # To attach Aegis to a local Kind cluster network (e.g. Boutique sample), include deploy/docker-compose.kind.yml

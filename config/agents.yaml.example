@@ -1,0 +1,121 @@
+# =============================================================================
+# Aegis — Agent Model & Budget Configuration Template (agents.yaml.example)
+# Copy this file to config/agents.yaml and customize for your environment.
+# Rule invariant: fallback[0].model MUST NOT be identical to primary.model.
+# =============================================================================
+
+agents:
+  infrastructure_investigator:
+    primary:
+      provider: gemini                # Options: gemini, ollama, openai
+      model: gemini-2.5-flash         # High-speed telemetry analysis model
+      token_limit: 10000              # Context window ceiling
+      temperature: 0.2                # Low temperature for deterministic analysis
+    fallback:
+      - provider: gemini
+        model: gemini-2.5-pro         # Escalation model if flash encounters rate limit/error
+        token_limit: 12000
+        temperature: 0.2
+      - provider: ollama
+        model: llama3.1:8b            # Local air-gapped fallback
+        token_limit: 8000
+        temperature: 0.2
+    timeout_ms: 30000
+    token_budget: 10000               # Per-incident token budget cap
+    max_iter: 10                      # Maximum ReAct agent reasoning iterations
+    max_tool_calls: 10                # Maximum MCP tool invocations
+    retry_on:
+      - rate_limit
+      - timeout
+      - provider_error
+
+  log_trace_investigator:
+    primary:
+      provider: gemini
+      model: gemini-2.5-flash
+      token_limit: 10000
+      temperature: 0.1                # Near-zero temperature for exact log/stack trace extraction
+    fallback:
+      - provider: gemini
+        model: gemini-2.5-pro
+        token_limit: 12000
+        temperature: 0.1
+      - provider: ollama
+        model: llama3.1:8b
+        token_limit: 8000
+        temperature: 0.1
+    timeout_ms: 30000
+    token_budget: 10000
+    max_iter: 10
+    max_tool_calls: 10
+    retry_on:
+      - rate_limit
+      - timeout
+      - provider_error
+
+  change_config_investigator:
+    primary:
+      provider: gemini
+      model: gemini-2.5-flash
+      token_limit: 8000
+      temperature: 0.2
+    fallback:
+      - provider: gemini
+        model: gemini-2.5-pro
+        token_limit: 10000
+        temperature: 0.2
+      - provider: ollama
+        model: llama3.1:8b
+        token_limit: 8000
+        temperature: 0.2
+    timeout_ms: 30000
+    token_budget: 8000
+    max_iter: 10
+    max_tool_calls: 10
+    retry_on:
+      - rate_limit
+      - timeout
+      - provider_error
+
+  remediation:
+    primary:
+      provider: gemini
+      model: gemini-2.5-pro           # High-reasoning model for fix synthesis & blast radius estimation
+      token_limit: 16384
+      temperature: 0.0                # Strict zero temperature for deterministic action proposals
+    fallback:
+      - provider: gemini
+        model: gemini-2.5-flash
+        token_limit: 12000
+        temperature: 0.0
+      - provider: ollama
+        model: llama3.1:70b
+        token_limit: 12000
+        temperature: 0.0
+    timeout_ms: 60000
+    max_tool_calls: 8
+    retry_on:
+      - rate_limit
+      - timeout
+      - provider_error
+
+  scribe:
+    primary:
+      provider: gemini
+      model: gemini-2.5-flash
+      token_limit: 10000
+      temperature: 0.3                # Moderate temperature for fluent post-incident narrative synthesis
+    fallback:
+      - provider: gemini
+        model: gemini-2.5-pro
+        token_limit: 12000
+        temperature: 0.3
+      - provider: ollama
+        model: llama3.1:8b
+        token_limit: 8000
+        temperature: 0.3
+    timeout_ms: 30000
+    retry_on:
+      - rate_limit
+      - timeout
+      - provider_error

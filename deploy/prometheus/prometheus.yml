@@ -1,0 +1,55 @@
+# Aegis — Prometheus Configuration
+# Scrape config for development/testing infrastructure.
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+# Alertmanager configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - "alertmanager:9093"
+
+# Prometheus alert rule definitions
+rule_files:
+  - "/etc/prometheus/rules/*.yaml"
+  - "/etc/prometheus/rules/*.yml"
+
+# Scrape configs — infrastructure targets
+scrape_configs:
+  # Prometheus self-monitoring
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  # Alertmanager
+  - job_name: "alertmanager"
+    static_configs:
+      - targets: ["alertmanager:9093"]
+
+  # Grafana
+  - job_name: "grafana"
+    static_configs:
+      - targets: ["grafana:3000"]
+
+  # Optional Kubernetes cAdvisor & kube-state-metrics scrape jobs for local Boutique Kind testing.
+  # Uncomment both jobs when running with `deploy/docker-compose.kind.yml` and `deploy/prometheus/k8s_token`.
+  # - job_name: "kubernetes-cadvisor"
+  #   scheme: https
+  #   tls_config:
+  #     insecure_skip_verify: true
+  #   bearer_token_file: /etc/prometheus/k8s_token
+  #   metrics_path: /metrics/cadvisor
+  #   static_configs:
+  #     - targets: ["aegis-demo-control-plane:10250"]
+  #
+  # - job_name: "kube-state-metrics"
+  #   scheme: https
+  #   tls_config:
+  #     insecure_skip_verify: true
+  #   bearer_token_file: /etc/prometheus/k8s_token
+  #   metrics_path: /api/v1/namespaces/kube-system/services/http:kube-state-metrics:8080/proxy/metrics
+  #   static_configs:
+  #     - targets: ["aegis-demo-control-plane:6443"]

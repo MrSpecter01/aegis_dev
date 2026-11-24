@@ -1,0 +1,33 @@
+# Aegis — Tempo Configuration (minimal single-instance monolithic mode)
+# Grafana Tempo 3.0.x — local filesystem backend for development/testing
+
+server:
+  http_listen_port: 3200
+
+# Monolithic mode: all components run in-process
+# No Kafka required for single-instance deployment
+
+distributor:
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: "0.0.0.0:4317"
+        http:
+          endpoint: "0.0.0.0:4318"
+
+storage:
+  trace:
+    backend: local
+    local:
+      path: /var/tempo/traces
+    wal:
+      path: /var/tempo/wal
+
+metrics_generator:
+  registry:
+    external_labels:
+      source: tempo
+      cluster: aegis-dev
+  storage:
+    path: /var/tempo/generator/wal

@@ -1,0 +1,423 @@
+[
+  {
+    "entry_id": "evt-1793604509.360617-alert_received",
+    "incident_id": "inc-20261102-0001",
+    "timestamp": "2026-11-02T07:28:29.360669Z",
+    "state": "GROUPING",
+    "event_type": "alert_received",
+    "source": "correlator",
+    "details": {
+      "alert_group": {
+        "group_id": "group-642a21a2646df755",
+        "primary_alert": {
+          "fingerprint": null,
+          "status": "firing",
+          "labels": {
+            "alertname": "TC_MUTATE_Frontend_Traffic_f83b7416",
+            "severity": "P2",
+            "service": "frontend",
+            "namespace": "boutique"
+          },
+          "annotations": {
+            "summary": "High HTTP request latency and CPU saturation on frontend",
+            "description": "frontend service experiencing high traffic demand, request queueing, and elevated latency."
+          },
+          "startsAt": "2026-11-02T07:28:29.263400Z",
+          "endsAt": null,
+          "generatorURL": null
+        },
+        "related_alerts": [],
+        "severity": "P2",
+        "affected_service": "frontend",
+        "affected_namespace": "boutique",
+        "created_at": "2026-11-02T07:28:29.355307Z",
+        "flapping": false,
+        "correlation_warning": true,
+        "fingerprints": [
+          "642a21a2646df755"
+        ]
+      }
+    }
+  },
+  {
+    "entry_id": "evt-1793604509.449194-grouping_complete",
+    "incident_id": "inc-20261102-0001",
+    "timestamp": "2026-11-02T07:28:29.449226Z",
+    "state": "TRIAGE",
+    "event_type": "grouping_complete",
+    "source": "correlator",
+    "details": {
+      "incident_id": "inc-20261102-0001"
+    }
+  },
+  {
+    "entry_id": "evt-1793604551.028662-triage_complete",
+    "incident_id": "inc-20261102-0001",
+    "timestamp": "2026-11-02T07:29:11.028684Z",
+    "state": "MERGING",
+    "event_type": "triage_complete",
+    "source": "phase1_worker",
+    "details": {}
+  },
+  {
+    "entry_id": "evt-1793604551.044757-merge_complete",
+    "incident_id": "inc-20261102-0001",
+    "timestamp": "2026-11-02T07:29:11.044776Z",
+    "state": "REMEDIATION",
+    "event_type": "merge_complete",
+    "source": "phase1_worker",
+    "details": {
+      "primary_hypothesis": "The frontend service pod 'frontend-54b9f9678-kpzl6' is currently running successfully and is in a healthy Running state with no restarts or container crashes. While an alert (TC_MUTATE_Frontend_Traffic_f83b7416) indicates high HTTP request latency and CPU saturation on frontend due to traffic demand, pod diagnostics confirm the container 'server' is ready and running normally without node pressure or resource exhaustion anomalies.",
+      "merged_confidence": 0.69,
+      "corroboration_score": 1.0
+    }
+  },
+  {
+    "entry_id": "evt-1793604553.443975-action_proposed",
+    "incident_id": "inc-20261102-0001",
+    "timestamp": "2026-11-02T07:29:13.443992Z",
+    "state": "AWAITING_APPROVAL",
+    "event_type": "action_proposed",
+    "source": "phase2_worker",
+    "details": {
+      "proposal": {
+        "incident_id": "inc-20261102-0001",
+        "actions": [
+          {
+            "tool_name": "scale_deployment",
+            "target_resource": "boutique/frontend",
+            "parameters": {
+              "namespace": "boutique",
+              "deployment": "frontend",
+              "replicas": 3
+            },
+            "rationale": "Traffic surge and high HTTP request latency causing CPU saturation on frontend; scaling up deployment replicas to handle concurrency and relieve load.",
+            "pre_approved": false
+          }
+        ],
+        "confidence": 0.88,
+        "risk_assessment": "Low risk; horizontal scaling increases replica count to absorb traffic demand without service interruption.",
+        "proposed_by": "remediation_agent",
+        "created_at": "2026-11-02T07:29:13.343454Z"
+      },
+      "action_id": "act-inc-20261102-0001-c55e6f6c",
+      "pre_approved": false
+    }
+  },
+  {
+    "entry_id": "evt-1793604556.914536-approved",
+    "incident_id": "inc-20261102-0001",
+    "timestamp": "2026-11-02T07:29:16.914552Z",
+    "state": "EXECUTING",
+    "event_type": "approved",
+    "source": "eval-runner",
+    "details": {
+      "action_id": "act-inc-20261102-0001-c55e6f6c",
+      "channel": "dashboard",
+      "reason": "Simulated SRE verified proposal: scale_deployment on frontend is justified."
+    }
+  },
+  {
+    "entry_id": "evt-1793604557.075657-pre_exec_diagnostics",
+    "incident_id": "inc-20261102-0001",
+    "timestamp": "2026-11-02T07:29:17.075694Z",
+    "state": "EXECUTING",
+    "event_type": "pre_execution_diagnostics",
+    "source": "phase2_worker",
+    "details": {
+      "tool_name": "scale_deployment",
+      "target_service": "frontend",
+      "target_namespace": "boutique",
+      "failure_class": "DEGRADED_LOAD",
+      "gate_verdict": "FAULT_CONFIRMED_PROCEED",
+      "reason": "Pre-execution diagnostics verified active condition DEGRADED_LOAD (Container running with degraded state (1/2 ready)). Approved action 'scale_deployment' is valid for this fault condition.",
+      "pod_diagnostics_summary": {
+        "pod_count": 2,
+        "critical_issues": [],
+        "recent_events_count": 10
+      }
+    }
+  },
+  {
+    "entry_id": "evt-1793604557.453807-execution_success",
+    "incident_id": "inc-20261102-0001",
+    "timestamp": "2026-11-02T07:29:17.453845Z",
+    "state": "MONITORING",
+    "event_type": "execution_success",
+    "source": "phase2_worker",
+    "details": {
+      "execution_results": [
+        {
+          "tool": "scale_deployment",
+          "status": "success",
+          "result": {
+            "meta": null,
+            "content": [
+              {
+                "type": "text",
+                "text": "{\n  \"success\": true,\n  \"namespace\": \"boutique\",\n  \"deployment\": \"frontend\",\n  \"replicas\": 3,\n  \"action_id\": \"act-inc-20261102-0001-c55e6f6c\",\n  \"message\": \"Deployment 'frontend' scaled to 3 replicas.\"\n}",
+                "annotations": null,
+                "meta": null
+              }
+            ],
+            "structuredContent": {
+              "result": {
+                "success": true,
+                "namespace": "boutique",
+                "deployment": "frontend",
+                "replicas": 3,
+                "action_id": "act-inc-20261102-0001-c55e6f6c",
+                "message": "Deployment 'frontend' scaled to 3 replicas."
+              }
+            },
+            "isError": false
+          }
+        }
+      ]
+    }
+  },
+  {
+    "entry_id": "evt-1793604641.985485-signals_not_converged",
+    "incident_id": "inc-20261102-0001",
+    "timestamp": "2026-11-02T07:30:41.985509Z",
+    "state": "REMEDIATION",
+    "event_type": "signals_not_converged",
+    "source": "phase2_worker",
+    "details": {
+      "prior_attempts_count": 1
+    }
+  },
+  {
+    "entry_id": "evt-1793604644.049498-action_proposed",
+    "incident_id": "inc-20261102-0001",
+    "timestamp": "2026-11-02T07:30:44.049517Z",
+    "state": "AWAITING_APPROVAL",
+    "event_type": "action_proposed",
+    "source": "phase2_worker",
+    "details": {
+      "proposal": {
+        "incident_id": "inc-20261102-0001",
+        "actions": [
+          {
+            "tool_name": "scale_deployment",
+            "target_resource": "boutique/frontend",
+            "parameters": {
+              "namespace": "boutique",
+              "deployment": "frontend",
+              "replicas": 4
+            },
+            "rationale": "Prior attempt 1 scaled replicas to 3, but unready pods (frontend-fbb9969b8-9js4p and frontend-fbb9969b8-n2lvl) indicate ongoing concurrency saturation or slow initialization. Further scaling the deployment to 4 replicas will absorb remaining traffic demand and distribute load more effectively.",
+            "pre_approved": false
+          }
+        ],
+        "confidence": 0.85,
+        "risk_assessment": "Low risk; increasing deployment replicas provides additional capacity to handle traffic demand and load peaks safely.",
+        "proposed_by": "remediation_agent",
+        "created_at": "2026-11-02T07:30:43.900156Z"
+      },
+      "action_id": "act-inc-20261102-0001-f79dea1f",
+      "pre_approved": false
+    }
+  },
+  {
+    "entry_id": "evt-1793604645.591143-approved",
+    "incident_id": "inc-20261102-0001",
+    "timestamp": "2026-11-02T07:30:45.591167Z",
+    "state": "EXECUTING",
+    "event_type": "approved",
+    "source": "eval-runner",
+    "details": {
+      "action_id": "act-inc-20261102-0001-f79dea1f",
+      "channel": "dashboard",
+      "reason": "Simulated SRE verified proposal: scale_deployment on frontend is justified."
+    }
+  },
+  {
+    "entry_id": "evt-1793604645.776649-pre_exec_diagnostics",
+    "incident_id": "inc-20261102-0001",
+    "timestamp": "2026-11-02T07:30:45.776681Z",
+    "state": "EXECUTING",
+    "event_type": "pre_execution_diagnostics",
+    "source": "phase2_worker",
+    "details": {
+      "tool_name": "scale_deployment",
+      "target_service": "frontend",
+      "target_namespace": "boutique",
+      "failure_class": "IMAGE_PULL_FAILURE",
+      "gate_verdict": "MUTATION_DETECTED_REPLAN",
+      "reason": "Approved action 'scale_deployment' cannot resolve IMAGE_PULL_FAILURE (Container waiting on image pull (ImagePullBackOff)). Scaling a broken deployment only multiplies failed pods.",
+      "pod_diagnostics_summary": {
+        "pod_count": 4,
+        "critical_issues": [
+          "Container 'server' waiting with ImagePullBackOff.",
+          "Container 'server' waiting with ImagePullBackOff."
+        ],
+        "recent_events_count": 10
+      }
+    }
+  },
+  {
+    "entry_id": "evt-1793604645.777266-pre_exec_mutation_detected",
+    "incident_id": "inc-20261102-0001",
+    "timestamp": "2026-11-02T07:30:45.777280Z",
+    "state": "EXECUTING",
+    "event_type": "pre_execution_mutation_detected",
+    "source": "phase2_worker",
+    "details": {
+      "aborted_tool": "scale_deployment",
+      "failure_class": "IMAGE_PULL_FAILURE",
+      "reason": "Approved action 'scale_deployment' cannot resolve IMAGE_PULL_FAILURE (Container waiting on image pull (ImagePullBackOff)). Scaling a broken deployment only multiplies failed pods.",
+      "mutation_delta": "Pre-execution check aborted 'scale_deployment': Approved action 'scale_deployment' cannot resolve IMAGE_PULL_FAILURE (Container waiting on image pull (ImagePullBackOff)). Scaling a broken deployment only multiplies failed pods. Live failure class: IMAGE_PULL_FAILURE (Container waiting on image pull (ImagePullBackOff)). Critical issues: [\"Container 'server' waiting with ImagePullBackOff.\", \"Container 'server' waiting with ImagePullBackOff.\"].",
+      "course_correction": "Aborted incompatible action; transitioning to REMEDIATION to re-plan."
+    }
+  },
+  {
+    "entry_id": "evt-1793604645.794476-pre_exec_replan",
+    "incident_id": "inc-20261102-0001",
+    "timestamp": "2026-11-02T07:30:45.794530Z",
+    "state": "REMEDIATION",
+    "event_type": "pre_exec_replan",
+    "source": "phase2_worker",
+    "details": {
+      "aborted_tool": "scale_deployment",
+      "new_failure_class": "IMAGE_PULL_FAILURE",
+      "reason": "Approved action 'scale_deployment' cannot resolve IMAGE_PULL_FAILURE (Container waiting on image pull (ImagePullBackOff)). Scaling a broken deployment only multiplies failed pods.",
+      "mutation_delta": "Pre-execution check aborted 'scale_deployment': Approved action 'scale_deployment' cannot resolve IMAGE_PULL_FAILURE (Container waiting on image pull (ImagePullBackOff)). Scaling a broken deployment only multiplies failed pods. Live failure class: IMAGE_PULL_FAILURE (Container waiting on image pull (ImagePullBackOff)). Critical issues: [\"Container 'server' waiting with ImagePullBackOff.\", \"Container 'server' waiting with ImagePullBackOff.\"]."
+    }
+  },
+  {
+    "entry_id": "evt-1793604654.0376-action_proposed",
+    "incident_id": "inc-20261102-0001",
+    "timestamp": "2026-11-02T07:30:54.037657Z",
+    "state": "AWAITING_APPROVAL",
+    "event_type": "action_proposed",
+    "source": "phase2_worker",
+    "details": {
+      "proposal": {
+        "incident_id": "inc-20261102-0001",
+        "actions": [
+          {
+            "tool_name": "rollback_release",
+            "target_resource": "boutique/frontend",
+            "parameters": {
+              "namespace": "boutique",
+              "app": "frontend",
+              "revision": 0
+            },
+            "rationale": "Live failure detection identified IMAGE_PULL_FAILURE (ImagePullBackOff) on the frontend deployment. Scaling or restarting broken pods is ineffective because the container image cannot be pulled; rolling back the release restores the last known good container image version.",
+            "pre_approved": false
+          }
+        ],
+        "confidence": 0.92,
+        "risk_assessment": "Low to moderate risk; rolling back the release reverts to a stable, previously deployed image revision, bypassing the current image pull failure.",
+        "proposed_by": "remediation_agent",
+        "created_at": "2026-11-02T07:30:53.796371Z"
+      },
+      "action_id": "act-inc-20261102-0001-49cfd81c",
+      "pre_approved": false
+    }
+  },
+  {
+    "entry_id": "evt-1793604655.699198-approved",
+    "incident_id": "inc-20261102-0001",
+    "timestamp": "2026-11-02T07:30:55.699219Z",
+    "state": "EXECUTING",
+    "event_type": "approved",
+    "source": "eval-runner",
+    "details": {
+      "action_id": "act-inc-20261102-0001-49cfd81c",
+      "channel": "dashboard",
+      "reason": "Simulated SRE verified proposal: rollback_release on frontend is justified."
+    }
+  },
+  {
+    "entry_id": "evt-1793604655.856808-pre_exec_diagnostics",
+    "incident_id": "inc-20261102-0001",
+    "timestamp": "2026-11-02T07:30:55.856854Z",
+    "state": "EXECUTING",
+    "event_type": "pre_execution_diagnostics",
+    "source": "phase2_worker",
+    "details": {
+      "tool_name": "rollback_release",
+      "target_service": "frontend",
+      "target_namespace": "boutique",
+      "failure_class": "IMAGE_PULL_FAILURE",
+      "gate_verdict": "FAULT_CONFIRMED_PROCEED",
+      "reason": "Pre-execution diagnostics verified active condition IMAGE_PULL_FAILURE (Container waiting on image pull (ImagePullBackOff)). Approved action 'rollback_release' is valid for this fault condition.",
+      "pod_diagnostics_summary": {
+        "pod_count": 4,
+        "critical_issues": [
+          "Container 'server' waiting with ImagePullBackOff.",
+          "Container 'server' waiting with ImagePullBackOff."
+        ],
+        "recent_events_count": 10
+      }
+    }
+  },
+  {
+    "entry_id": "evt-1793604656.308171-execution_success",
+    "incident_id": "inc-20261102-0001",
+    "timestamp": "2026-11-02T07:30:56.308230Z",
+    "state": "MONITORING",
+    "event_type": "execution_success",
+    "source": "phase2_worker",
+    "details": {
+      "execution_results": [
+        {
+          "tool": "rollback_release",
+          "status": "success",
+          "result": {
+            "meta": null,
+            "content": [
+              {
+                "type": "text",
+                "text": "{\n  \"success\": true,\n  \"target\": \"kubernetes\",\n  \"namespace\": \"boutique\",\n  \"app\": \"frontend\",\n  \"revision\": 3,\n  \"action_id\": \"act-inc-20261102-0001-49cfd81c\",\n  \"message\": \"Deployment 'frontend' rolled back to revision 3 via Kubernetes API.\"\n}",
+                "annotations": null,
+                "meta": null
+              }
+            ],
+            "structuredContent": {
+              "result": {
+                "success": true,
+                "target": "kubernetes",
+                "namespace": "boutique",
+                "app": "frontend",
+                "revision": 3,
+                "action_id": "act-inc-20261102-0001-49cfd81c",
+                "message": "Deployment 'frontend' rolled back to revision 3 via Kubernetes API."
+              }
+            },
+            "isError": false
+          }
+        }
+      ]
+    }
+  },
+  {
+    "entry_id": "evt-1793604730.558145-signals_converged",
+    "incident_id": "inc-20261102-0001",
+    "timestamp": "2026-11-02T07:32:10.558185Z",
+    "state": "REPORTING",
+    "event_type": "signals_converged",
+    "source": "phase2_worker",
+    "details": {
+      "convergence": {
+        "converged": true
+      }
+    }
+  },
+  {
+    "entry_id": "evt-1793604735.351499-report_delivered",
+    "incident_id": "inc-20261102-0001",
+    "timestamp": "2026-11-02T07:32:15.351523Z",
+    "state": "CLOSED",
+    "event_type": "report_delivered",
+    "source": "scribe",
+    "details": {
+      "report_path": "/data/incidents/inc-20261102-0001/report.md",
+      "delivered_to": [
+        "disk"
+      ]
+    }
+  }
+]

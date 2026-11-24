@@ -1,0 +1,75 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Environments
+.venv/
+env/
+venv/
+ENV/
+.deps/
+
+# Frontend / Node
+node_modules/
+services/dashboard/dist/
+
+# Testing, Test Runs, Test Data & Cache
+.pytest_cache/
+.pytest_tmp/
+.uv_cache/
+.coverage
+htmlcov/
+seed/.seed_cache.json
+seed/.runbooks_index_meta.json
+data/
+data/eval_runs/
+data/incidents/
+eval_runs/
+test_runs/
+test_data/
+tests/chaos/
+tests/unit/test_eval_tooling.py
+
+# Environment Variables, Secrets & Cluster Configs
+.env
+deploy/.env
+*.env.local
+deploy/kubeconfig*
+deploy/prometheus/k8s_token
+config/identities.yaml
+config/history/
+
+# Runtime Storage & Logs
+storage/
+aegis-data/
+*.log
+
+# IDE, Editor & OS
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*~
+*.un~
+*.swp
+
+# Untracked Internal Docs, Agent Configs, Testbeds, Eval/Dev Scripts & Paper
+.kiro/
+.agents/
+.archify/
+AGENTS.md
+skills-lock.json
+docs_prv/
+docs_prv/diagrams/
+testbeds/
+paper/
+SRE_Agent_Design_Flow.md
+deploy/otel-demo-values*.yaml
+scripts/*
+!scripts/seed_runbooks.py
+!scripts/setup_test_cluster.ps1

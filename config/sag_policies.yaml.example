@@ -1,0 +1,130 @@
+# =============================================================================
+# Aegis — Safety Action Gateway Policy Template (sag_policies.yaml.example)
+# Copy this file to config/sag_policies.yaml and customize for your security policy.
+# All remediation tool executions MUST adhere to the policies defined here.
+# =============================================================================
+
+policies:
+  default_requires_approval: true     # Fail-closed default: unknown tools require human approval
+
+  tools:
+    # -------------------------------------------------------------------------
+    # Kubernetes Write Tools (State Alterations)
+    # -------------------------------------------------------------------------
+    restart_pod:
+      pre_approved: false             # Set true only in trusted dev environments for zero-touch auto-restart
+      allowed_namespaces:
+        - boutique
+        - default
+      requires_approval: true
+
+    scale_deployment:
+      pre_approved: false
+      max_replicas: 20                # Upper bound protection against runaway autoscaling
+      requires_approval: true
+
+    rollback_release:
+      pre_approved: false
+      requires_approval: true
+      severity_override: true         # Allow emergency rollback without waiting on P1 incidents
+      aliases:
+        - rollback_deployment
+
+    update_resource_limits:
+      pre_approved: false
+      max_cpu_increase_ratio: 2.0     # Maximum multiplier for CPU limit bump (e.g. 500m -> 1000m)
+      max_memory_increase_ratio: 2.0  # Maximum multiplier for Memory limit bump
+      requires_approval: true
+      aliases:
+        - patch_deployment_resources
+        - patch_resource_limits
+
+    drain_node:
+      pre_approved: false
+      requires_approval: true
+      strict_confirmation: true       # Requires secondary human confirmation
+      severity_override: true
+
+    toggle_feature_flag:
+      pre_approved: false
+      requires_approval: true
+      allowed_environments:
+        - production
+        - staging
+        - development
+      aliases:
+        - set_feature_flag
+
+    # -------------------------------------------------------------------------
+    # Read-Only Telemetry Tools (Pre-Approved by Default)
+    # -------------------------------------------------------------------------
+    prometheus_query:
+      pre_approved: true
+      requires_approval: false
+
+    prometheus_query_range:
+      pre_approved: true
+      requires_approval: false
+
+    loki_query:
+      pre_approved: true
+      requires_approval: false
+
+    loki_query_range:
+      pre_approved: true
+      requires_approval: false
+
+    tempo_search_traces:
+      pre_approved: true
+      requires_approval: false
+
+    tempo_get_trace:
+      pre_approved: true
+      requires_approval: false
+
+    k8s_get_pod_status:
+      pre_approved: true
+      requires_approval: false
+
+    k8s_get_events:
+      pre_approved: true
+      requires_approval: false
+
+    k8s_get_node_metrics:
+      pre_approved: true
+      requires_approval: false
+
+    k8s_get_configmap_diff:
+      pre_approved: true
+      requires_approval: false
+
+    github_get_commits:
+      pre_approved: true
+      requires_approval: false
+
+    argocd_get_app_status:
+      pre_approved: true
+      requires_approval: false
+
+    argocd_get_sync_history:
+      pre_approved: true
+      requires_approval: false
+
+    topology_query_node:
+      pre_approved: true
+      requires_approval: false
+
+    qdrant_search:
+      pre_approved: true
+      requires_approval: false
+
+  # ---------------------------------------------------------------------------
+  # Runbook Rule Linter Boundaries
+  # Controls limits for documents marked with type/tag 'rule' hot-injected into
+  # Phase 2 system prompt (<operational_rules>) to prevent context window bloat.
+  # ---------------------------------------------------------------------------
+  runbook_linter:
+    max_rules: 8                      # Maximum atomic rule items allowed per rule document
+    max_words: 150                    # Maximum total word count allowed for injected rules
+    max_chars: 800                    # Maximum character count allowed for injected rules
+    strict: false                     # In CI/automation, skip verbose rule documents without prompting

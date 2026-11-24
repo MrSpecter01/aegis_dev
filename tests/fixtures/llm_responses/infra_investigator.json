@@ -1,0 +1,32 @@
+{
+  "agent_role": "infrastructure_investigator",
+  "hypothesis": "cartservice pod in CrashLoopBackOff due to OOMKilled (exit code 137)",
+  "confidence": 0.88,
+  "evidence": [
+    {
+      "source_tool": "k8s_get_pod_status",
+      "query_or_cmd": "cartservice",
+      "raw_output": "Status: CrashLoopBackOff, Last Termination Reason: OOMKilled, Exit Code: 137"
+    },
+    {
+      "source_tool": "prometheus_query",
+      "query_or_cmd": "container_memory_working_set_bytes{container='cartservice'}",
+      "raw_output": "536870912 bytes (limit: 536870912 bytes - 100% saturation)"
+    }
+  ],
+  "verbatim_signals": {
+    "exit_code": 137,
+    "termination_reason": "OOMKilled",
+    "container": "cartservice"
+  },
+  "infra_flags": {
+    "oom_killed": true,
+    "node_eviction": false,
+    "cpu_throttled": false
+  },
+  "recommended_actions": [
+    "update_resource_limits",
+    "restart_pod"
+  ],
+  "truncated": false
+}
